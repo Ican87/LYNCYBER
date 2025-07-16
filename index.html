@@ -342,9 +342,14 @@
                         <div class="text-xs text-green-400">
                             <span id="streamStatus">LIVE STREAM</span>
                         </div>
-                        <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
-                            <i class="fas fa-stop mr-1"></i> STOP
-                        </button>
+                        <div class="flex space-x-2">
+                            <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
+                                <i class="fas fa-user-lock mr-1"></i> APPROVE
+                            </button>
+                            <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
+                                <i class="fas fa-stop mr-1"></i> STOP
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -633,6 +638,28 @@
                 addSystemMessage(`@${username} ENDED THE STREAM`);
             }
         });
+
+        // Handle stream approval
+        document.getElementById('approveBtn').addEventListener('click', () => {
+            const approveBtn = document.getElementById('approveBtn');
+            if (approveBtn.textContent.includes('APPROVE')) {
+                // Grant access to specific users or all
+                approveBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> APPROVED';
+                approveBtn.classList.remove('bg-yellow-600');
+                approveBtn.classList.add('bg-green-600');
+                addSystemMessage(`@${username} GRANTED STREAM ACCESS`);
+            } else {
+                // Revoke access
+                approveBtn.innerHTML = '<i class="fas fa-user-lock mr-1"></i> APPROVE';
+                approveBtn.classList.remove('bg-green-600');
+                approveBtn.classList.add('bg-yellow-600');
+                addSystemMessage(`@${username} REVOKED STREAM ACCESS`);
+            }
+            // In a real app, you would notify the requester here via Firebase
+        });
+
+        // Show approve button only to stream owner when someone requests
+        // In a real app, you'd check Firebase for pending requests
 
         // Handle stream approval
         document.getElementById('approveBtn').addEventListener('click', () => {
