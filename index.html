@@ -617,7 +617,7 @@
         function addSystemMessage(text) {
             const systemDiv = document.createElement('div');
             systemDiv.className = 'text-center text-base text-gray-500 my-2';
-            systemDiv.textContent = `SYSTEM: ${text}`;
+            systemDiv.textContent = text;
             messagesContainer.appendChild(systemDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -631,7 +631,7 @@
                     // Remove user from Firebase
                     database.ref('users/' + kickUser).remove()
                         .then(() => {
-                            addSystemMessage(`ADMIN: @${kickUser} has been kicked from the chat`);
+                            addSystemMessage(`@${kickUser} has been kicked from the chat`);
                             // Also clear their messages if desired
                             // database.ref('messages').orderByChild('sender').equalTo(kickUser).remove();
                         })
