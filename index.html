@@ -243,6 +243,63 @@
             border-color: #00ff41;
         }
 
+        .tab-btn {
+            background: transparent;
+            color: #00ff41;
+            border: none;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            color: #ffa500;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #ffa500;
+        }
+
+        .request-item {
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            background: #222;
+            border: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .request-item:hover {
+            border-color: #00ff41;
+        }
+
+        .request-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .request-btn {
+            padding: 2px 5px;
+            font-size: 10px;
+            border-radius: 3px;
+        }
+
+        .approve-btn {
+            background: #008f11;
+            color: #00ff41;
+        }
+
+        .reject-btn {
+            background: #8f0000;
+            color: #ff4136;
+        }
+
         .terminal-cursor {
             display: inline-block;
             width: 10px;
@@ -326,6 +383,7 @@
                 </button>
                 <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden" title="Request stream from another user">
                     <i class="fas fa-satellite-dish mr-1"></i> <span class="hidden md:inline">REQUEST</span>
+                    <span id="pendingRequestsBadge" class="hidden ml-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">0</span>
                 </button>
                 <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-trash mr-1"></i> <span class="hidden md:inline">CLEAR</span>
@@ -940,6 +998,19 @@
             }
         });
 
+        // Listen for pending requests count (admin only)
+        if (username.toLowerCase() === 'ichsan87') {
+            database.ref('stream-requests').on('value', (snapshot) => {
+                const badge = document.getElementById('pendingRequestsBadge');
+                if (snapshot.exists()) {
+                    badge.textContent = snapshot.numChildren();
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
+        }
+
         // Listen for WebRTC signals
         database.ref('stream-signals/' + username).on('child_added', (snapshot) => {
             const signal = snapshot.val();
@@ -1099,9 +1170,18 @@
             modal.innerHTML = `
                 <div class="stream-request-content cyberpunk-font">
                     <h3 class="text-lg mb-4">REQUEST STREAM FROM USER</h3>
+                    <div id="streamRequestTabs" class="flex border-b border-green-500 mb-4">
+                        <button class="tab-btn active px-4 py-2" data-tab="users">Users</button>
+                        <button class="tab-btn px-4 py-2" data-tab="requests" id="requestsTab">Requests</button>
+                    </div>
                     <div class="stream-user-list cyberpunk-scrollbar" id="streamUserList">
                         <div class="text-center py-4 text-gray-500">
                             <i class="fas fa-spinner fa-spin"></i> Loading users...
+                        </div>
+                    </div>
+                    <div class="stream-request-list cyberpunk-scrollbar hidden" id="streamRequestList">
+                        <div class="text-center py-4 text-gray-500">
+                            <i class="fas fa-spinner fa-spin"></i> Loading requests...
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -1114,6 +1194,22 @@
             
             document.body.appendChild(modal);
             
+            // Tab switching
+            modal.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    if (btn.dataset.tab === 'users') {
+                        document.getElementById('streamUserList').classList.remove('hidden');
+                        document.getElementById('streamRequestList').classList.add('hidden');
+                    } else {
+                        document.getElementById('streamUserList').classList.add('hidden');
+                        document.getElementById('streamRequestList').classList.remove('hidden');
+                    }
+                });
+            });
+
             // Load available users
             database.ref('users').once('value').then(snapshot => {
                 const userList = document.getElementById('streamUserList');
@@ -1147,6 +1243,60 @@
                     userList.innerHTML = '<div class="text-center py-4 text-gray-500">No streamable users</div>';
                 }
             });
+
+            // Load pending requests (for admin)
+            if (username.toLowerCase() === 'ichsan87') {
+                database.ref('stream-requests').once('value').then(snapshot => {
+                    const requestList = document.getElementById('streamRequestList');
+                    requestList.innerHTML = '';
+                    
+                    if (!snapshot.exists()) {
+                        requestList.innerHTML = '<div class="text-center py-4 text-gray-500">No pending requests</div>';
+                        return;
+                    }
+                    
+                    snapshot.forEach(request => {
+                        const requester = request.val().requester;
+                        const requestItem = document.createElement('div');
+                        requestItem.className = 'request-item';
+                        requestItem.innerHTML = `
+                            <span>@${requester}</span>
+                            <div class="request-actions">
+                                <button class="request-btn approve-btn">APPROVE</button>
+                                <button class="request-btn reject-btn">REJECT</button>
+                            </div>
+                        `;
+                        
+                        requestItem.querySelector('.approve-btn').addEventListener('click', () => {
+                            // Approve the request
+                            database.ref(`stream-responses/${requester}`).set({
+                                from: username,
+                                target: requester,
+                                approved: true,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            });
+                            request.ref.remove();
+                            requestItem.remove();
+                            addSystemMessage(`Stream request from @${requester} approved`);
+                        });
+                        
+                        requestItem.querySelector('.reject-btn').addEventListener('click', () => {
+                            // Reject the request
+                            database.ref(`stream-responses/${requester}`).set({
+                                from: username,
+                                target: requester,
+                                approved: false,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            });
+                            request.ref.remove();
+                            requestItem.remove();
+                            addSystemMessage(`Stream request from @${requester} rejected`);
+                        });
+                        
+                        requestList.appendChild(requestItem);
+                    });
+                });
+            }
             
             // Cancel button
             modal.querySelector('#cancelRequestBtn').addEventListener('click', () => {
