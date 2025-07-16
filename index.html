@@ -479,23 +479,10 @@
                 currentUser.innerHTML = username + ' <span class="text-xs">(ADMIN)</span>';
                 document.getElementById('clearChatBtn').classList.remove('hidden');
                 document.getElementById('kickBtn').classList.remove('hidden');
-                
-                // Admin can view streams directly
-                userCountRef.on('value', (snapshot) => {
-                    snapshot.forEach(user => {
-                        if (user.key !== username && user.key.toLowerCase() !== 'ichsan87' && user.key !== 'KICKED') {
-                            streamStatus.textContent += ` | @${user.key} is online and streamable`;
-                        }
-                    });
-                });
             }
-            // Show stream button only for current user
+            // Show stream buttons for all users
             document.getElementById('startStreamBtn').classList.remove('hidden');
-            
-            // Show request button only for admin
-            if (username.toLowerCase() === 'ichsan87') {
-                document.getElementById('requestStreamBtn').classList.remove('hidden');
-            }
+            document.getElementById('requestStreamBtn').classList.remove('hidden');
             
             loginScreen.classList.add('hidden');
             chatRoom.classList.remove('hidden');
@@ -622,16 +609,12 @@
             const kickUser = prompt('Enter username to kick:');
             if (kickUser) {
                 if (confirm(`Are you sure you want to kick @${kickUser}?`)) {
-                    // Force disconnect the user by removing them from Firebase
-                    const userRef = database.ref('users/' + kickUser);
-                    userRef.set('KICKED');
-                    userRef.remove()
+                    // Remove user from Firebase
+                    database.ref('users/' + kickUser).remove()
                         .then(() => {
                             addSystemMessage(`ADMIN: @${kickUser} has been kicked from the chat`);
-                            // Also clear their messages if admin wants
-                            // setTimeout(() => {
-                            //     database.ref('messages').orderByChild('sender').equalTo(kickUser).remove();
-                            // }, 3000);
+                            // Also clear their messages if desired
+                            // database.ref('messages').orderByChild('sender').equalTo(kickUser).remove();
                         })
                         .catch((error) => {
                             addSystemMessage(`ERROR kicking @${kickUser}: ${error.message}`);
