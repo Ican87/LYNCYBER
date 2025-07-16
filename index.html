@@ -89,6 +89,10 @@
             transform: translateY(-2px);
         }
         
+        .text-purple-500 {
+            color: #8b5cf6;
+        }
+        
         .cyberpunk-btn:active {
             transform: translateY(0);
         }
@@ -273,10 +277,10 @@
                 <div class="text-xs md:text-sm">
                     <span id="currentUser" class="text-green-400">GUEST</span>
                 </div>
-                <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2">
+                <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-video mr-1"></i> <span class="hidden md:inline">STREAM</span>
                 </button>
-                <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2">
+                <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-trash mr-1"></i> <span class="hidden md:inline">CLEAR</span>
                 </button>
                 <button id="closeChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm">
@@ -415,6 +419,14 @@
             username = nicknameInput.value.trim() || 'ANONYMOUS_' + Math.floor(Math.random() * 1000);
             currentUser.textContent = username;
             
+            // Check if user is admin
+            if (username.toLowerCase() === 'ichsan87') {
+                currentUser.classList.add('text-purple-500');
+                currentUser.innerHTML = username + ' <span class="text-xs">(ADMIN)</span>';
+                document.getElementById('clearChatBtn').classList.remove('hidden');
+                document.getElementById('startStreamBtn').classList.remove('hidden');
+            }
+            
             loginScreen.classList.add('hidden');
             chatRoom.classList.remove('hidden');
             
@@ -506,10 +518,11 @@
             messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`;
             
             const bubble = document.createElement('div');
-            bubble.className = `max-w-xs md:max-w-md rounded-lg px-4 py-2 ${isCurrentUser ? 'bg-green-900 bg-opacity-50' : 'bg-gray-900 bg-opacity-50'}`;
+            const isAdmin = sender.toLowerCase() === 'ichsan87';
+            bubble.className = `max-w-xs md:max-w-md rounded-lg px-4 py-2 ${isCurrentUser ? 'bg-green-900 bg-opacity-50' : 'bg-gray-900 bg-opacity-50'} ${isAdmin ? 'border border-purple-500' : ''}`;
             
             const senderSpan = document.createElement('span');
-            senderSpan.className = 'text-lg font-bold text-white';
+            senderSpan.className = `text-lg font-bold ${isAdmin ? 'text-purple-500' : 'text-white'}`;
             senderSpan.textContent = `@${sender}`;
             
             const textDiv = document.createElement('div');
