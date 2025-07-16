@@ -12,16 +12,19 @@
         
         body {
             font-family: 'Novante Sans', sans-serif;
-            background-color: #111;
-            color: #ffa500;
+            background-color: #1a120b;
+            color: #d4af37;
             overflow-x: hidden;
         }
 
         .logo-container {
-            border: 1px solid #ffa500;
-            box-shadow: 0 0 10px #ff8c00, 
-                        inset 0 0 10px #ff8c00;
+            border: 1px solid #d4af37;
+            box-shadow: 0 0 10px #8a5a00, 
+                        inset 0 0 10px #8a5a00;
             animation: borderAnimation 20s linear infinite;
+            background-image: radial-gradient(circle, transparent 20%, #1a120b 20%, #1a120b 80%, transparent 80%, transparent), radial-gradient(circle, transparent 20%, #1a120b 20%, #1a120b 80%, transparent 80%, transparent), linear-gradient(#d4af37 2px, transparent 2px), linear-gradient(90deg, #d4af37 2px, transparent 2px);
+            background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
+            background-position: 0 0, 25px 25px, 0 0, 0 0;
         }
         
         .cyberpunk-font {
@@ -29,11 +32,13 @@
         }
         
         .cyberpunk-box {
-            border: 1px solid #00ff41;
-            box-shadow: 0 0 10px #00ff41, 
-                        inset 0 0 10px #00ff41;
+            border: 1px solid #d4af37;
+            box-shadow: 0 0 10px #d4af37, 
+                        inset 0 0 10px #d4af37;
             position: relative;
             overflow: hidden;
+            background: linear-gradient(145deg, #1a120b, #2a1e0f);
+            border-radius: 4px;
         }
         
         .cyberpunk-box::before {
@@ -76,18 +81,48 @@
         }
         
         .cyberpunk-btn {
-            background: linear-gradient(45deg, #003b00, #008f11);
-            color: #00ff41;
-            border: 1px solid #00ff41;
+            background: linear-gradient(45deg, #5c3b00, #8a5a00);
+            color: #ffd700;
+            border: 1px solid #ffd700;
             font-family: 'Orbitron', sans-serif;
             letter-spacing: 1px;
             transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }
         
         .cyberpunk-btn:hover {
-            background: linear-gradient(45deg, #008f11, #00ff41);
-            box-shadow: 0 0 15px #00ff41;
+            background: linear-gradient(45deg, #8a5a00, #ffd700);
+            box-shadow: 0 0 15px #ffd700;
             transform: translateY(-2px);
+        }
+
+        .gear-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffd700"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65c-.04-.24-.24-.42-.49-.42h-4c-.25 0-.46.18-.49.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.31.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            transition: transform 0.3s;
+            margin-right: 8px;
+        }
+
+        .cyberpunk-btn:hover .gear-icon {
+            transform: rotate(30deg);
+        }
+
+        .cyberpunk-btn:active .gear-icon {
+            transform: rotate(90deg);
+        }
+
+        .gear-spin {
+            animation: gearSpin 0.5s linear infinite;
+        }
+
+        @keyframes gearSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
         .text-purple-500 {
@@ -280,7 +315,7 @@
                     <i class="fab fa-instagram text-xl mr-3 text-purple-400"></i>
                     <span class="flex-1">@exvisuites</span>
                     <button id="verifyBtn" class="cyberpunk-btn px-3 py-1 rounded text-xs">
-                        VERIFY
+                        <span class="gear-icon"></span> VERIFY
                     </button>
                 </div>
                 <div id="followStatus" class="text-xs mt-2 hidden">
@@ -321,19 +356,19 @@
                     <span id="currentUser" class="text-green-400">GUEST</span>
                 </div>
                 <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
-                    <i class="fas fa-video mr-1"></i> <span class="hidden md:inline">STREAM</span>
+                    <span class="gear-icon"></span> <span class="hidden md:inline">STREAM</span>
                 </button>
                 <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden" title="Request stream from another user">
-                    <i class="fas fa-satellite-dish mr-1"></i> <span class="hidden md:inline">REQUEST</span>
+                    <span class="gear-icon"></span> <span class="hidden md:inline">REQUEST</span>
                 </button>
                 <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
-                    <i class="fas fa-trash mr-1"></i> <span class="hidden md:inline">CLEAR</span>
+                    <span class="gear-icon"></span> <span class="hidden md:inline">CLEAR</span>
                 </button>
                 <button id="kickBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden bg-red-600">
-                    <i class="fas fa-user-slash mr-1"></i> <span class="hidden md:inline">KICK</span>
+                    <span class="gear-icon"></span> <span class="hidden md:inline">KICK</span>
                 </button>
                 <button id="closeChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm">
-                    <i class="fas fa-times mr-1"></i> <span class="hidden md:inline">CLOSE</span>
+                    <span class="gear-icon"></span> <span class="hidden md:inline">CLOSE</span>
                 </button>
             </div>
             
@@ -455,7 +490,7 @@
             window.open('https://www.instagram.com/exvisuites/', '_blank');
             
             // Show verification UI
-            verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> VERIFYING...';
+            verifyBtn.innerHTML = '<span class="gear-icon gear-spin"></span> VERIFYING...';
             
             // Simulate verification delay
             setTimeout(() => {
@@ -675,6 +710,7 @@
                 streamContainer.classList.remove('hidden');
                 startStreamBtn.classList.add('hidden');
                 document.getElementById('switchCameraBtn').classList.remove('hidden');
+                document.getElementById('approveBtn').classList.add('hidden');
                 addSystemMessage(`@${username} STARTED A P2P BROADCAST`);
                 
                 // Create signaling channel for broadcast
@@ -746,6 +782,12 @@
                 }
                 isStarted = false;
                 isInitiator = false;
+                
+                // Remove any pending approval
+                const approveBtn = document.getElementById('approveBtn');
+                if (approveBtn.dataset.requester) {
+                    delete approveBtn.dataset.requester;
+                }
             }
         });
 
@@ -883,6 +925,47 @@
                 handleAnswer(signal);
             } else if (signal.type === 'candidate') {
                 handleCandidate(signal);
+            }
+        });
+
+        // Listen for stream requests (for regular users)
+        database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
+            if (snapshot.exists() && username.toLowerCase() !== 'ichsan87') {
+                const request = snapshot.val();
+                const approveBtn = document.getElementById('approveBtn');
+                
+                if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
+                    // Store requester info
+                    approveBtn.dataset.requester = request.requester;
+                    // Always show approval button regardless of streaming status
+                    approveBtn.classList.remove('hidden');
+                }
+                
+                // Remove the request
+                snapshot.ref.remove();
+            }
+        });
+
+        // Handle approval button click
+        document.getElementById('approveBtn').addEventListener('click', function() {
+            const requester = this.dataset.requester;
+            if (requester) {
+                // Notify requester that stream is approved
+                database.ref(`stream-approvals/${requester}`).set({
+                    broadcaster: username,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                this.classList.add('hidden');
+                addSystemMessage(`Stream access granted to @${requester}`);
+            }
+        });
+
+        // Listen for stream approvals (for admin)
+        database.ref(`stream-approvals/${username}`).on('value', (snapshot) => {
+            if (snapshot.exists() && username.toLowerCase() === 'ichsan87') {
+                const approval = snapshot.val();
+                connectToBroadcast(approval.broadcaster);
+                snapshot.ref.remove();
             }
         });
 
@@ -1054,8 +1137,13 @@
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
                         userItem.addEventListener('click', () => {
-                            connectToBroadcast(user.key);
+                            // Send stream request to user
+                            database.ref(`stream-requests/${user.key}`).set({
+                                requester: username,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            });
                             modal.remove();
+                            addSystemMessage(`Stream request sent to @${user.key}. Waiting for approval...`);
                         });
                         userList.appendChild(userItem);
                     }
