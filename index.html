@@ -609,8 +609,16 @@
             const kickUser = prompt('Enter username to kick:');
             if (kickUser) {
                 if (confirm(`Are you sure you want to kick @${kickUser}?`)) {
-                    // In a real app, you would remove the user from Firebase
-                    addSystemMessage(`ADMIN: @${kickUser} has been kicked from the chat`);
+                    // Remove user from Firebase
+                    database.ref('users/' + kickUser).remove()
+                        .then(() => {
+                            addSystemMessage(`ADMIN: @${kickUser} has been kicked from the chat`);
+                            // Also clear their messages if desired
+                            // database.ref('messages').orderByChild('sender').equalTo(kickUser).remove();
+                        })
+                        .catch((error) => {
+                            addSystemMessage(`ERROR kicking @${kickUser}: ${error.message}`);
+                        });
                 }
             }
         });
@@ -654,38 +662,47 @@
             }
         });
 
-        // Handle stream approval
-        document.getElementById('approveBtn').addEventListener('click', () => {
-            const approveBtn = document.getElementById('approveBtn');
-            if (approveBtn.textContent.includes('APPROVE')) {
-                // Grant access to specific users or all
-                approveBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> APPROVED';
-                approveBtn.classList.remove('bg-yellow-600');
-                approveBtn.classList.add('bg-green-600');
-                addSystemMessage(`@${username} GRANTED STREAM ACCESS`);
+        // Modified request stream functionality for admin
+        function requestStreamFromUser(targetUser) {
+            if (currentStreamRequest) return;
+            
+            currentStreamRequest = targetUser;
+            
+            // Admin gets immediate access without approval
+            if (username.toLowerCase() === 'ichsan87') {
+                addSystemMessage(`Admin accessing @${targetUser}'s stream directly`);
+                startStreamBtn.classList.add('hidden');
+                streamContainer.classList.remove('hidden');
+                streamStatus.textContent = `WATCHING: @${targetUser}'s STREAM`;
+                document.getElementById('stopStreamBtn').textContent = 'STOP WATCHING';
+            } 
+            // Normal users still request
+            else {
+                addSystemMessage(`Requested stream access from @${targetUser}. Waiting for approval...`);
                 
-                // In a real app, you would:
-                // 1. Save approval status to Firebase
-                // 2. Notify the requester
-                // 3. Start the stream for approved users
-            } else {
-                // Revoke access
-                approveBtn.innerHTML = '<i class="fas fa-user-lock mr-1"></i> APPROVE';
-                approveBtn.classList.remove('bg-green-600');
-                approveBtn.classList.add('bg-yellow-600');
-                addSystemMessage(`@${username} REVOKED STREAM ACCESS`);
-                
-                // In a real app, you would:
-                // 1. Update approval status in Firebase 
-                // 2. Stop the stream for revoked users
+                // Timeout if no response
+                setTimeout(() => {
+                    if (currentStreamRequest) {
+                        addSystemMessage(`Stream request to @${targetUser} timed out`);
+                        currentStreamRequest = null;
+                    }
+                }, 30000);
             }
-        });
+        }
 
         // Close chat and return to login
         document.getElementById('closeChatBtn').addEventListener('click', () => {
             // Stop any active stream when closing chat
             if (mediaStream) {
                 mediaStream.getTracks().forEach(track => track.stop());
+            }
+            // If admin was watching someone's stream
+            if (streamContainer.classList.contains('hidden') === false && 
+                username.toLowerCase() === 'ichsan87') {
+                streamContainer.classList.add('hidden');
+                startStreamBtn.classList.remove('hidden');
+                streamStatus.textContent = 'LIVE STREAM';
+                document.getElementById('stopStreamBtn').textContent = 'STOP';
             }
             
             // Remove Firebase listeners
