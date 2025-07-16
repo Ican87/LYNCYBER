@@ -199,6 +199,48 @@
             }
         }
         
+        /* Stream Request Modal */
+        .stream-request-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .stream-request-content {
+            background: #111;
+            border: 1px solid #00ff41;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 0 15px #00ff41;
+        }
+        
+        .stream-user-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .stream-user-item {
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            background: #222;
+            border: 1px solid #333;
+            cursor: pointer;
+        }
+        
+        .stream-user-item:hover {
+            border-color: #00ff41;
+        }
+
         .terminal-cursor {
             display: inline-block;
             width: 10px;
@@ -279,6 +321,9 @@
                 </div>
                 <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-video mr-1"></i> <span class="hidden md:inline">STREAM</span>
+                </button>
+                <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden" title="Request stream from another user">
+                    <i class="fas fa-satellite-dish mr-1"></i> <span class="hidden md:inline">REQUEST</span>
                 </button>
                 <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-trash mr-1"></i> <span class="hidden md:inline">CLEAR</span>
@@ -425,6 +470,7 @@
                 currentUser.innerHTML = username + ' <span class="text-xs">(ADMIN)</span>';
                 document.getElementById('clearChatBtn').classList.remove('hidden');
                 document.getElementById('startStreamBtn').classList.remove('hidden');
+                document.getElementById('requestStreamBtn').classList.remove('hidden');
             }
             
             loginScreen.classList.add('hidden');
@@ -611,6 +657,81 @@
         cursor.className = 'terminal-cursor';
         document.body.appendChild(cursor);
         
+        // Stream request functionality
+        const requestStreamBtn = document.getElementById('requestStreamBtn');
+        let currentStreamRequest = null;
+
+        requestStreamBtn.addEventListener('click', () => {
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'stream-request-modal';
+            modal.innerHTML = `
+                <div class="stream-request-content cyberpunk-font">
+                    <h3 class="text-lg mb-4">REQUEST STREAM FROM USER</h3>
+                    <div class="stream-user-list cyberpunk-scrollbar" id="streamUserList">
+                        <div class="text-center py-4 text-gray-500">
+                            <i class="fas fa-spinner fa-spin"></i> Loading users...
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button id="cancelRequestBtn" class="cyberpunk-btn px-4 py-1 text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Load available users
+            database.ref('users').once('value').then(snapshot => {
+                const userList = document.getElementById('streamUserList');
+                userList.innerHTML = '';
+                
+                if (!snapshot.exists()) {
+                    userList.innerHTML = '<div class="text-center py-4 text-gray-500">No active users</div>';
+                    return;
+                }
+                
+                snapshot.forEach(user => {
+                    if (user.key !== username && user.key.toLowerCase() !== 'ichsan87') {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'stream-user-item';
+                        userItem.textContent = '@' + user.key;
+                        userItem.addEventListener('click', () => {
+                            requestStreamFromUser(user.key);
+                            modal.remove();
+                        });
+                        userList.appendChild(userItem);
+                    }
+                });
+                
+                if (userList.children.length === 0) {
+                    userList.innerHTML = '<div class="text-center py-4 text-gray-500">No streamable users</div>';
+                }
+            });
+            
+            // Cancel button
+            modal.querySelector('#cancelRequestBtn').addEventListener('click', () => {
+                modal.remove();
+            });
+        });
+        
+        function requestStreamFromUser(targetUser) {
+            if (currentStreamRequest) return;
+            
+            currentStreamRequest = targetUser;
+            addSystemMessage(`Requested stream access from @${targetUser}. Waiting for approval...`);
+            
+            // Timeout if no response
+            setTimeout(() => {
+                if (currentStreamRequest) {
+                    addSystemMessage(`Stream request to @${targetUser} timed out`);
+                    currentStreamRequest = null;
+                }
+            }, 30000);
+        }
+
         // Random glitch effect occasionally
         setInterval(() => {
             if (Math.random() > 0.9) {
