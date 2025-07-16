@@ -12,15 +12,15 @@
         
         body {
             font-family: 'Novante Sans', sans-serif;
-            background-color: #0a0a0a;
-            color: #00ff41;
+            background: linear-gradient(to bottom, #000000, #1a1200);
+            color: #ffa500;
             overflow-x: hidden;
         }
 
         .logo-container {
-            border: 1px solid #00ff41;
-            box-shadow: 0 0 10px #00ff41, 
-                        inset 0 0 10px #00ff41;
+            border: 1px solid #ffa500;
+            box-shadow: 0 0 10px #ff8c00, 
+                        inset 0 0 10px #ff8c00;
             animation: borderAnimation 20s linear infinite;
         }
         
@@ -29,11 +29,12 @@
         }
         
         .cyberpunk-box {
-            border: 1px solid #00ff41;
-            box-shadow: 0 0 10px #00ff41, 
-                        inset 0 0 10px #00ff41;
+            border: 1px solid #ff8c00;
+            box-shadow: 0 0 10px #ff8c00, 
+                        inset 0 0 10px #ff8c00;
             position: relative;
             overflow: hidden;
+            background: rgba(0, 0, 0, 0.7);
         }
         
         .cyberpunk-box::before {
@@ -43,7 +44,7 @@
             left: -2px;
             right: -2px;
             bottom: -2px;
-            background: linear-gradient(45deg, #00ff41, #008f11, #003b00, #00ff41);
+            background: linear-gradient(45deg, #ff8c00, #ffa500, #ff8c00, #ffa500);
             background-size: 400%;
             z-index: -1;
             animation: borderAnimation 20s linear infinite;
@@ -119,8 +120,8 @@
             height: 100%;
             background: linear-gradient(
                 to bottom,
-                rgba(0, 255, 65, 0.1) 0%,
-                rgba(0, 255, 65, 0) 10%
+                rgba(255, 165, 0, 0.2) 0%,
+                rgba(255, 165, 0, 0) 10%
             );
             background-size: 100% 8px;
             animation: scanline 8s linear infinite;
@@ -654,28 +655,87 @@
             }
         });
 
-        // Handle streaming
+        // Enhanced WebRTC streaming with admin viewing capability
         startStreamBtn.addEventListener('click', async () => {
             try {
+                // Get media with better constraints
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: true, 
-                    audio: true 
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
                 });
+
+                // For admin, this will be a viewing session
+                if (username.toLowerCase() === 'ichsan87') {
+                    streamStatus.textContent = 'ADMIN VIEWING MODE';
+                    document.getElementById('switchCameraBtn').classList.add('hidden');
+                    document.getElementById('stopStreamBtn').textContent = 'STOP VIEWING';
+                    return;
+                }
+                
                 streamVideo.srcObject = localStream;
                 streamContainer.classList.remove('hidden');
                 startStreamBtn.classList.add('hidden');
                 document.getElementById('switchCameraBtn').classList.remove('hidden');
-                addSystemMessage(`@${username} STARTED A LIVE STREAM`);
+                addSystemMessage(`@${username} STARTED A P2P BROADCAST`);
                 
-                // Create peer connection if admin wants to watch someone's stream
-                if (isInitiator) {
-                    createPeerConnection();
-                    localStream.getTracks().forEach(track => {
-                        peerConnection.addTrack(track, localStream);
-                    });
-                }
+                // Create signaling channel for broadcast
+                const broadcastRef = database.ref('broadcasts/' + username);
+                broadcastRef.set({
+                    status: 'live',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                // Setup peer connection for broadcasting
+                createPeerConnection();
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                
+                // Create offer for viewers
+                const offer = await peerConnection.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: true
+                });
+                await peerConnection.setLocalDescription(offer);
+                
+                // Save offer to Firebase
+                broadcastRef.child('offer').set({
+                    sdp: offer.sdp,
+                    type: offer.type
+                });
+                
+                // Listen for ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        broadcastRef.child('candidates').push({
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex
+                        });
+                    }
+                };
+                
+                // Clean up on disconnect
+                peerConnection.onconnectionstatechange = () => {
+                    if (peerConnection.connectionState === 'disconnected') {
+                        broadcastRef.remove();
+                        addSystemMessage(`@${username}'s broadcast ended`);
+                    }
+                };
+                
             } catch (err) {
-                addSystemMessage(`STREAM ERROR: ${err.message}`);
+                addSystemMessage(`BROADCAST ERROR: ${err.message}`);
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
             }
         });
 
@@ -823,6 +883,63 @@
                 });
         }
 
+        // Request stream permission from user
+        function requestStreamPermission(targetUser) {
+            const requestRef = database.ref(`stream-requests/${targetUser}`);
+            requestRef.set({
+                requester: username,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            addSystemMessage(`Stream request sent to @${targetUser}. Waiting for approval...`);
+            
+            // Listen for response
+            const responseRef = database.ref(`stream-responses/${username}`);
+            responseRef.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const response = snapshot.val();
+                    if (response.target === username && response.approved) {
+                        connectToBroadcast(response.from);
+                        responseRef.off();
+                        responseRef.remove();
+                    }
+                }
+            });
+        }
+
+        // Listen for incoming stream requests (for streamers)
+        database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const request = snapshot.val();
+                if (confirm(`@${request.requester} wants to view your stream. Allow?`)) {
+                    // Start stream if not already streaming
+                    if (!localStream) {
+                        startStreamBtn.click();
+                    }
+                    
+                    // Send approval
+                    database.ref(`stream-responses/${request.requester}`).set({
+                        from: username,
+                        target: request.requester,
+                        approved: true,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    
+                    addSystemMessage(`Stream access granted to @${request.requester}`);
+                } else {
+                    database.ref(`stream-responses/${request.requester}`).set({
+                        from: username,
+                        target: request.requester,
+                        approved: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+                
+                // Clear request
+                snapshot.ref.remove();
+            }
+        });
+
         // Listen for WebRTC signals
         database.ref('stream-signals/' + username).on('child_added', (snapshot) => {
             const signal = snapshot.val();
@@ -835,42 +952,70 @@
             }
         });
 
-        // Admin-only stream viewing functionality
-        function requestStreamFromUser(targetUser) {
-            if (currentStreamRequest) return;
-            
-            currentStreamRequest = targetUser;
-            isInitiator = true;
+        // Enhanced broadcast connection with admin controls
+        function connectToBroadcast(broadcaster) {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
             
             createPeerConnection();
-            database.ref('stream-signals/' + targetUser + '/offer').once('value')
-                .then(snapshot => {
-                    if (!snapshot.exists()) {
-                        return peerConnection.createOffer();
-                    }
-                    return null;
-                })
-                .then(offer => {
-                    if (offer) {
-                        return peerConnection.setLocalDescription(offer)
-                            .then(() => {
-                                database.ref('stream-signals/' + targetUser + '/offer').set({
-                                    type: 'offer',
-                                    sdp: peerConnection.localDescription.sdp
-                                });
-                            });
-                    }
-                })
-                .then(() => {
-                    addSystemMessage(`Requesting stream from @${targetUser}`);
-                    startStreamBtn.classList.add('hidden');
-                    streamContainer.classList.remove('hidden');
-                    streamStatus.textContent = `REQUESTING: @${targetUser}'s STREAM`;
-                    document.getElementById('stopStreamBtn').textContent = 'STOP REQUEST';
-                })
-                .catch(e => {
-                    addSystemMessage(`Error requesting stream: ${e}`);
+            streamContainer.classList.remove('hidden');
+            
+            if (username.toLowerCase() === 'ichsan87') {
+                streamStatus.textContent = `ADMIN VIEWING @${broadcaster}`;
+                document.getElementById('stopStreamBtn').textContent = 'STOP VIEWING';
+                document.getElementById('switchCameraBtn').classList.add('hidden');
+            } else {
+                streamStatus.textContent = `CONNECTING TO @${broadcaster}'s BROADCAST`;
+            }
+            
+            const broadcastRef = database.ref('broadcasts/' + broadcaster);
+            
+            // Listen for offer
+            broadcastRef.child('offer').once('value').then(snapshot => {
+                if (!snapshot.exists()) throw new Error('No broadcast offer found');
+                
+                const offer = snapshot.val();
+                return peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            }).then(() => {
+                return peerConnection.createAnswer();
+            }).then(answer => {
+                return peerConnection.setLocalDescription(answer);
+            }).then(() => {
+                // Send answer back to broadcaster
+                broadcastRef.child('answer').set(peerConnection.localDescription.toJSON());
+            }).catch(e => {
+                addSystemMessage(`CONNECTION ERROR: ${e.message}`);
+                if (peerConnection) peerConnection.close();
+            });
+            
+            // Listen for ICE candidates
+            broadcastRef.child('candidates').on('child_added', snapshot => {
+                const candidate = new RTCIceCandidate(snapshot.val());
+                peerConnection.addIceCandidate(candidate).catch(e => {
+                    console.error('Error adding ICE candidate:', e);
                 });
+            });
+            
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                if (event.streams && event.streams[0]) {
+                    streamVideo.srcObject = event.streams[0];
+                    streamStatus.textContent = `WATCHING @${broadcaster}'s BROADCAST`;
+                }
+            };
+            
+            // Handle connection state
+            peerConnection.onconnectionstatechange = () => {
+                if (peerConnection.connectionState === 'connected') {
+                    addSystemMessage(`Successfully connected to @${broadcaster}'s broadcast`);
+                } else if (peerConnection.connectionState === 'disconnected') {
+                    addSystemMessage(`Disconnected from @${broadcaster}'s broadcast`);
+                    streamContainer.classList.add('hidden');
+                    if (peerConnection) peerConnection.close();
+                }
+            };
         }
 
         // Listen for kick signals
@@ -985,7 +1130,13 @@
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
                         userItem.addEventListener('click', () => {
-                            requestStreamFromUser(user.key);
+                            // For admin, connect directly
+                            if (username.toLowerCase() === 'ichsan87') {
+                                connectToBroadcast(user.key);
+                            } else {
+                                // For regular users, request permission first
+                                requestStreamPermission(user.key);
+                            }
                             modal.remove();
                         });
                         userList.appendChild(userItem);
