@@ -928,6 +928,38 @@
             }
         });
 
+        // Listen for streamer offers
+        database.ref('streamerOffers/' + username).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const offer = snapshot.val();
+                handleOffer(snapshot.key, offer);
+                snapshot.ref.remove();
+            }
+        });
+
+        // Listen for streamer requests
+        database.ref('streamerRequest/' + username).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const request = snapshot.val();
+                if (confirm(`@${request.requester} wants to view your stream. Approve?`)) {
+                    database.ref('streamerAnswers/' + request.requester).set({
+                        broadcaster: username,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+                snapshot.ref.remove();
+            }
+        });
+
+        // Listen for streamer answers
+        database.ref('streamerAnswers/' + username).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const answer = snapshot.val();
+                connectToBroadcast(answer.broadcaster);
+                snapshot.ref.remove();
+            }
+        });
+
         // Listen for stream requests (for regular users)
         database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
             if (snapshot.exists() && username.toLowerCase() !== 'ichsan87') {
