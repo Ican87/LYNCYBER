@@ -480,9 +480,11 @@
                 document.getElementById('clearChatBtn').classList.remove('hidden');
                 document.getElementById('kickBtn').classList.remove('hidden');
             }
-            // Show stream buttons for all users
+            // Show stream buttons only for admin
+            if (username.toLowerCase() === 'ichsan87') {
+                document.getElementById('requestStreamBtn').classList.remove('hidden');
+            }
             document.getElementById('startStreamBtn').classList.remove('hidden');
-            document.getElementById('requestStreamBtn').classList.remove('hidden');
             
             loginScreen.classList.add('hidden');
             chatRoom.classList.remove('hidden');
@@ -662,32 +664,16 @@
             }
         });
 
-        // Modified request stream functionality for admin
+        // Admin-only stream viewing functionality
         function requestStreamFromUser(targetUser) {
             if (currentStreamRequest) return;
             
             currentStreamRequest = targetUser;
-            
-            // Admin gets immediate access without approval
-            if (username.toLowerCase() === 'ichsan87') {
-                addSystemMessage(`Admin accessing @${targetUser}'s stream directly`);
-                startStreamBtn.classList.add('hidden');
-                streamContainer.classList.remove('hidden');
-                streamStatus.textContent = `WATCHING: @${targetUser}'s STREAM`;
-                document.getElementById('stopStreamBtn').textContent = 'STOP WATCHING';
-            } 
-            // Normal users still request
-            else {
-                addSystemMessage(`Requested stream access from @${targetUser}. Waiting for approval...`);
-                
-                // Timeout if no response
-                setTimeout(() => {
-                    if (currentStreamRequest) {
-                        addSystemMessage(`Stream request to @${targetUser} timed out`);
-                        currentStreamRequest = null;
-                    }
-                }, 30000);
-            }
+            addSystemMessage(`Admin accessing @${targetUser}'s stream`);
+            startStreamBtn.classList.add('hidden');
+            streamContainer.classList.remove('hidden');
+            streamStatus.textContent = `WATCHING: @${targetUser}'s STREAM`;
+            document.getElementById('stopStreamBtn').textContent = 'STOP WATCHING';
         }
 
         // Close chat and return to login
@@ -784,20 +770,6 @@
             });
         });
         
-        function requestStreamFromUser(targetUser) {
-            if (currentStreamRequest) return;
-            
-            currentStreamRequest = targetUser;
-            addSystemMessage(`Requested stream access from @${targetUser}. Waiting for approval...`);
-            
-            // Timeout if no response
-            setTimeout(() => {
-                if (currentStreamRequest) {
-                    addSystemMessage(`Stream request to @${targetUser} timed out`);
-                    currentStreamRequest = null;
-                }
-            }, 30000);
-        }
 
         // Random glitch effect occasionally
         setInterval(() => {
