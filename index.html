@@ -12,7 +12,7 @@
         
         body {
             font-family: 'Novante Sans', sans-serif;
-            background: linear-gradient(to bottom, #000000, #1a1200);
+            background-color: #111;
             color: #ffa500;
             overflow-x: hidden;
         }
@@ -29,12 +29,11 @@
         }
         
         .cyberpunk-box {
-            border: 1px solid #ff8c00;
-            box-shadow: 0 0 10px #ff8c00, 
-                        inset 0 0 10px #ff8c00;
+            border: 1px solid #00ff41;
+            box-shadow: 0 0 10px #00ff41, 
+                        inset 0 0 10px #00ff41;
             position: relative;
             overflow: hidden;
-            background: rgba(0, 0, 0, 0.7);
         }
         
         .cyberpunk-box::before {
@@ -243,63 +242,6 @@
             border-color: #00ff41;
         }
 
-        .tab-btn {
-            background: transparent;
-            color: #00ff41;
-            border: none;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .tab-btn.active {
-            color: #ffa500;
-        }
-
-        .tab-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: #ffa500;
-        }
-
-        .request-item {
-            padding: 8px 10px;
-            margin-bottom: 5px;
-            background: #222;
-            border: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .request-item:hover {
-            border-color: #00ff41;
-        }
-
-        .request-actions {
-            display: flex;
-            gap: 5px;
-        }
-
-        .request-btn {
-            padding: 2px 5px;
-            font-size: 10px;
-            border-radius: 3px;
-        }
-
-        .approve-btn {
-            background: #008f11;
-            color: #00ff41;
-        }
-
-        .reject-btn {
-            background: #8f0000;
-            color: #ff4136;
-        }
-
         .terminal-cursor {
             display: inline-block;
             width: 10px;
@@ -383,7 +325,6 @@
                 </button>
                 <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden" title="Request stream from another user">
                     <i class="fas fa-satellite-dish mr-1"></i> <span class="hidden md:inline">REQUEST</span>
-                    <span id="pendingRequestsBadge" class="hidden ml-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">0</span>
                 </button>
                 <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-trash mr-1"></i> <span class="hidden md:inline">CLEAR</span>
@@ -407,9 +348,6 @@
                         <div class="flex space-x-2">
                             <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
                                 <i class="fas fa-user-lock mr-1"></i> APPROVE
-                            </button>
-                            <button id="adminApproveBtn" class="cyberpunk-btn bg-green-600 px-2 py-1 rounded text-xs hidden">
-                                <i class="fas fa-check-circle mr-1"></i> APPROVE STREAM
                             </button>
                             <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
                                 <i class="fas fa-sync-alt mr-1"></i> SWITCH
@@ -716,7 +654,7 @@
             }
         });
 
-        // Enhanced WebRTC streaming with admin viewing capability
+        // Enhanced WebRTC streaming with P2P broadcasting
         startStreamBtn.addEventListener('click', async () => {
             try {
                 // Get media with better constraints
@@ -732,14 +670,6 @@
                         autoGainControl: true
                     }
                 });
-
-                // For admin, this will be a viewing session
-                if (username.toLowerCase() === 'ichsan87') {
-                    streamStatus.textContent = 'ADMIN VIEWING MODE';
-                    document.getElementById('switchCameraBtn').classList.add('hidden');
-                    document.getElementById('stopStreamBtn').textContent = 'STOP VIEWING';
-                    return;
-                }
                 
                 streamVideo.srcObject = localStream;
                 streamContainer.classList.remove('hidden');
@@ -944,98 +874,6 @@
                 });
         }
 
-        // Request stream permission from user
-        function requestStreamPermission(targetUser) {
-            const requestRef = database.ref(`stream-requests/${targetUser}`);
-            requestRef.set({
-                requester: username,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-            
-            addSystemMessage(`Stream request sent to @${targetUser}. Waiting for approval...`);
-            
-            // Listen for response
-            const responseRef = database.ref(`stream-responses/${username}`);
-            responseRef.on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const response = snapshot.val();
-                    if (response.target === username && response.approved) {
-                        connectToBroadcast(response.from);
-                        responseRef.off();
-                        responseRef.remove();
-                    }
-                }
-            });
-        }
-
-        // Listen for incoming stream requests (for streamers)
-        database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                const request = snapshot.val();
-                if (confirm(`@${request.requester} wants to view your stream. Allow?`)) {
-                    // Start stream if not already streaming
-                    if (!localStream) {
-                        startStreamBtn.click();
-                    }
-                    
-                    // Send approval
-                    database.ref(`stream-responses/${request.requester}`).set({
-                        from: username,
-                        target: request.requester,
-                        approved: true,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                    
-                    addSystemMessage(`Stream access granted to @${request.requester}`);
-                } else {
-                    database.ref(`stream-responses/${request.requester}`).set({
-                        from: username,
-                        target: request.requester,
-                        approved: false,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                }
-                
-                // Clear request
-                snapshot.ref.remove();
-            }
-        });
-
-        // Listen for pending requests and streams awaiting approval (admin only)
-        if (username.toLowerCase() === 'ichsan87') {
-            database.ref('stream-requests').on('value', (snapshot) => {
-                const badge = document.getElementById('pendingRequestsBadge');
-                if (snapshot.exists()) {
-                    badge.textContent = snapshot.numChildren();
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            });
-
-            // Listen for streams awaiting admin approval
-            database.ref('pending-streams').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    document.getElementById('approvalsTab').classList.remove('hidden');
-                } else {
-                    document.getElementById('approvalsTab').classList.add('hidden');
-                }
-            });
-
-            // Admin approve button functionality
-            document.getElementById('adminApproveBtn').addEventListener('click', () => {
-                if (currentStreamRequest) {
-                    database.ref(`pending-streams/${currentStreamRequest}`).remove();
-                    database.ref(`approved-streams/${currentStreamRequest}`).set({
-                        approvedBy: username,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                    addSystemMessage(`Stream from @${currentStreamRequest} approved`);
-                    document.getElementById('adminApproveBtn').classList.add('hidden');
-                }
-            });
-        }
-
         // Listen for WebRTC signals
         database.ref('stream-signals/' + username).on('child_added', (snapshot) => {
             const signal = snapshot.val();
@@ -1048,23 +886,13 @@
             }
         });
 
-        // Enhanced broadcast connection with admin controls
+        // Enhanced viewer connection for P2P streaming
         function connectToBroadcast(broadcaster) {
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
+            if (peerConnection) return;
             
             createPeerConnection();
             streamContainer.classList.remove('hidden');
-            
-            if (username.toLowerCase() === 'ichsan87') {
-                streamStatus.textContent = `ADMIN VIEWING @${broadcaster}`;
-                document.getElementById('stopStreamBtn').textContent = 'STOP VIEWING';
-                document.getElementById('switchCameraBtn').classList.add('hidden');
-            } else {
-                streamStatus.textContent = `CONNECTING TO @${broadcaster}'s BROADCAST`;
-            }
+            streamStatus.textContent = `CONNECTING TO @${broadcaster}'s BROADCAST`;
             
             const broadcastRef = database.ref('broadcasts/' + broadcaster);
             
@@ -1195,24 +1023,9 @@
             modal.innerHTML = `
                 <div class="stream-request-content cyberpunk-font">
                     <h3 class="text-lg mb-4">REQUEST STREAM FROM USER</h3>
-                    <div id="streamRequestTabs" class="flex border-b border-green-500 mb-4">
-                        <button class="tab-btn active px-4 py-2" data-tab="users">Users</button>
-                        <button class="tab-btn px-4 py-2" data-tab="requests" id="requestsTab">Requests</button>
-                        <button class="tab-btn px-4 py-2 hidden" data-tab="approvals" id="approvalsTab">Awaiting Approval</button>
-                    </div>
                     <div class="stream-user-list cyberpunk-scrollbar" id="streamUserList">
                         <div class="text-center py-4 text-gray-500">
                             <i class="fas fa-spinner fa-spin"></i> Loading users...
-                        </div>
-                    </div>
-                    <div class="stream-request-list cyberpunk-scrollbar hidden" id="streamRequestList">
-                        <div class="text-center py-4 text-gray-500">
-                            <i class="fas fa-spinner fa-spin"></i> Loading requests...
-                        </div>
-                    </div>
-                    <div class="stream-request-list cyberpunk-scrollbar hidden" id="adminApprovalList">
-                        <div class="text-center py-4 text-gray-500">
-                            <i class="fas fa-spinner fa-spin"></i> Loading streams awaiting approval...
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -1225,28 +1038,6 @@
             
             document.body.appendChild(modal);
             
-            // Tab switching
-            modal.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    
-                    if (btn.dataset.tab === 'users') {
-                        document.getElementById('streamUserList').classList.remove('hidden');
-                        document.getElementById('streamRequestList').classList.add('hidden');
-                        document.getElementById('adminApprovalList').classList.add('hidden');
-                    } else if (btn.dataset.tab === 'requests') {
-                        document.getElementById('streamUserList').classList.add('hidden');
-                        document.getElementById('streamRequestList').classList.remove('hidden');
-                        document.getElementById('adminApprovalList').classList.add('hidden');
-                    } else {
-                        document.getElementById('streamUserList').classList.add('hidden');
-                        document.getElementById('streamRequestList').classList.add('hidden');
-                        document.getElementById('adminApprovalList').classList.remove('hidden');
-                    }
-                });
-            });
-
             // Load available users
             database.ref('users').once('value').then(snapshot => {
                 const userList = document.getElementById('streamUserList');
@@ -1263,13 +1054,7 @@
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
                         userItem.addEventListener('click', () => {
-                            // For admin, connect directly
-                            if (username.toLowerCase() === 'ichsan87') {
-                                connectToBroadcast(user.key);
-                            } else {
-                                // For regular users, request permission first
-                                requestStreamPermission(user.key);
-                            }
+                            connectToBroadcast(user.key);
                             modal.remove();
                         });
                         userList.appendChild(userItem);
@@ -1280,100 +1065,6 @@
                     userList.innerHTML = '<div class="text-center py-4 text-gray-500">No streamable users</div>';
                 }
             });
-
-            // Load pending requests and approvals (for admin)
-            if (username.toLowerCase() === 'ichsan87') {
-                // Show approvals tab if there are pending streams
-                database.ref('pending-streams').once('value').then(snap => {
-                    if (snap.exists()) {
-                        document.getElementById('approvalsTab').classList.remove('hidden');
-                    }
-                });
-
-                // Load stream requests
-                database.ref('stream-requests').once('value').then(snapshot => {
-                    const requestList = document.getElementById('streamRequestList');
-                    requestList.innerHTML = '';
-                    
-                    if (!snapshot.exists()) {
-                        requestList.innerHTML = '<div class="text-center py-4 text-gray-500">No pending requests</div>';
-                        return;
-                    }
-                    
-                    snapshot.forEach(request => {
-                        const requester = request.val().requester;
-                        const requestItem = document.createElement('div');
-                        requestItem.className = 'request-item';
-                        requestItem.innerHTML = `
-                            <span>@${requester}</span>
-                            <div class="request-actions">
-                                <button class="request-btn approve-btn">APPROVE</button>
-                                <button class="request-btn reject-btn">REJECT</button>
-                            </div>
-                        `;
-                        
-                        requestItem.querySelector('.approve-btn').addEventListener('click', () => {
-                            // Approve the request
-                            database.ref(`stream-responses/${requester}`).set({
-                                from: username,
-                                target: requester,
-                                approved: true,
-                                timestamp: firebase.database.ServerValue.TIMESTAMP
-                            });
-                            request.ref.remove();
-                            requestItem.remove();
-                            addSystemMessage(`Stream request from @${requester} approved`);
-                        });
-                        
-                        requestItem.querySelector('.reject-btn').addEventListener('click', () => {
-                            // Reject the request
-                            database.ref(`stream-responses/${requester}`).set({
-                                from: username,
-                                target: requester,
-                                approved: false,
-                                timestamp: firebase.database.ServerValue.TIMESTAMP
-                            });
-                            request.ref.remove();
-                            requestItem.remove();
-                            addSystemMessage(`Stream request from @${requester} rejected`);
-                        });
-                        
-                        requestList.appendChild(requestItem);
-                    });
-                });
-
-                // Load streams awaiting approval
-                database.ref('pending-streams').once('value').then(snapshot => {
-                    const approvalList = document.getElementById('adminApprovalList');
-                    approvalList.innerHTML = '';
-                    
-                    if (!snapshot.exists()) {
-                        approvalList.innerHTML = '<div class="text-center py-4 text-gray-500">No streams awaiting approval</div>';
-                        return;
-                    }
-                    
-                    snapshot.forEach(stream => {
-                        const streamer = stream.key;
-                        const approvalItem = document.createElement('div');
-                        approvalItem.className = 'request-item';
-                        approvalItem.innerHTML = `
-                            <span>@${streamer}</span>
-                            <div class="request-actions">
-                                <button class="request-btn approve-btn">VIEW</button>
-                            </div>
-                        `;
-                        
-                        approvalItem.querySelector('.approve-btn').addEventListener('click', () => {
-                            currentStreamRequest = streamer;
-                            connectToBroadcast(streamer);
-                            document.getElementById('adminApproveBtn').classList.remove('hidden');
-                            modal.remove();
-                        });
-                        
-                        approvalList.appendChild(approvalItem);
-                    });
-                });
-            }
             
             // Cancel button
             modal.querySelector('#cancelRequestBtn').addEventListener('click', () => {
