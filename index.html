@@ -349,6 +349,9 @@
                             <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
                                 <i class="fas fa-user-lock mr-1"></i> APPROVE
                             </button>
+                            <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
+                                <i class="fas fa-sync-alt mr-1"></i> SWITCH
+                            </button>
                             <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
                                 <i class="fas fa-stop mr-1"></i> STOP
                             </button>
@@ -386,6 +389,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     
     <script>
         // Firebase configuration
@@ -431,6 +435,19 @@
         let isFollowing = false;
         let socket;
         let typingTimeout;
+        let peerConnection;
+        let localStream;
+        let remoteStream;
+        let isInitiator = false;
+        let isChannelReady = false;
+        let isStarted = false;
+        const servers = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
         
         // Instagram follow verification
         verifyBtn.addEventListener('click', () => {
@@ -640,27 +657,181 @@
         // Handle streaming
         startStreamBtn.addEventListener('click', async () => {
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                localStream = await navigator.mediaDevices.getUserMedia({ 
                     video: true, 
                     audio: true 
                 });
-                streamVideo.srcObject = mediaStream;
+                streamVideo.srcObject = localStream;
                 streamContainer.classList.remove('hidden');
                 startStreamBtn.classList.add('hidden');
+                document.getElementById('switchCameraBtn').classList.remove('hidden');
                 addSystemMessage(`@${username} STARTED A LIVE STREAM`);
+                
+                // Create peer connection if admin wants to watch someone's stream
+                if (isInitiator) {
+                    createPeerConnection();
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
             } catch (err) {
                 addSystemMessage(`STREAM ERROR: ${err.message}`);
             }
         });
 
         stopStreamBtn.addEventListener('click', () => {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
                 streamVideo.srcObject = null;
                 streamContainer.classList.add('hidden');
                 document.getElementById('approveBtn').classList.add('hidden');
+                document.getElementById('switchCameraBtn').classList.add('hidden');
                 startStreamBtn.classList.remove('hidden');
                 addSystemMessage(`@${username} ENDED THE STREAM`);
+                
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                isStarted = false;
+                isInitiator = false;
+            }
+        });
+
+        // Switch camera functionality
+        document.getElementById('switchCameraBtn').addEventListener('click', async () => {
+            try {
+                if (!localStream) return;
+                
+                // Get current video track
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (!videoTrack) return;
+                
+                // Get available devices
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                if (videoDevices.length < 2) {
+                    addSystemMessage('Only one camera available');
+                    return;
+                }
+                
+                // Find current device and switch to next
+                const currentDeviceId = videoTrack.getSettings().deviceId;
+                let nextDeviceIndex = 0;
+                
+                for (let i = 0; i < videoDevices.length; i++) {
+                    if (videoDevices[i].deviceId === currentDeviceId) {
+                        nextDeviceIndex = (i + 1) % videoDevices.length;
+                        break;
+                    }
+                }
+                
+                // Stop current track
+                videoTrack.stop();
+                
+                // Get new stream with switched camera
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        deviceId: { exact: videoDevices[nextDeviceIndex].deviceId },
+                        facingMode: videoDevices[nextDeviceIndex].label.includes('front') ? 'user' : 'environment'
+                    },
+                    audio: true
+                });
+                
+                // Replace the video track
+                const newVideoTrack = newStream.getVideoTracks()[0];
+                localStream.addTrack(newVideoTrack);
+                localStream.removeTrack(videoTrack);
+                streamVideo.srcObject = localStream;
+                
+                // Close the unused stream
+                newStream.getTracks().filter(t => t.kind !== 'video').forEach(t => t.stop());
+                
+                addSystemMessage(`@${username} switched camera`);
+            } catch (err) {
+                addSystemMessage(`Camera switch error: ${err.message}`);
+            }
+        });
+
+        function createPeerConnection() {
+            try {
+                peerConnection = new RTCPeerConnection(servers);
+                peerConnection.onicecandidate = handleIceCandidate;
+                peerConnection.ontrack = handleRemoteStreamAdded;
+                isChannelReady = true;
+            } catch (e) {
+                addSystemMessage(`Failed to create PeerConnection: ${e.toString()}`);
+            }
+        }
+
+        function handleIceCandidate(event) {
+            if (event.candidate) {
+                database.ref('stream-signals/' + username + '/candidate').set({
+                    type: 'candidate',
+                    label: event.candidate.sdpMLineIndex,
+                    id: event.candidate.sdpMid,
+                    candidate: event.candidate.candidate
+                });
+            }
+        }
+
+        function handleRemoteStreamAdded(event) {
+            remoteStream = event.streams[0];
+            streamVideo.srcObject = remoteStream;
+        }
+
+        function handleOffer(sender, offer) {
+            if (!isInitiator && !isStarted) {
+                createPeerConnection();
+                isStarted = true;
+                
+                peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+                    .then(() => {
+                        return peerConnection.createAnswer();
+                    })
+                    .then(answer => {
+                        return peerConnection.setLocalDescription(answer);
+                    })
+                    .then(() => {
+                        database.ref('stream-signals/' + sender + '/answer').set({
+                            type: 'answer',
+                            sdp: peerConnection.localDescription.sdp
+                        });
+                    })
+                    .catch(e => {
+                        addSystemMessage(`Error handling offer: ${e}`);
+                    });
+            }
+        }
+
+        function handleAnswer(answer) {
+            peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+                .catch(e => {
+                    addSystemMessage(`Error setting remote description: ${e}`);
+                });
+        }
+
+        function handleCandidate(candidate) {
+            const iceCandidate = new RTCIceCandidate({
+                sdpMLineIndex: candidate.label,
+                candidate: candidate.candidate
+            });
+            peerConnection.addIceCandidate(iceCandidate)
+                .catch(e => {
+                    addSystemMessage(`Error adding ICE candidate: ${e}`);
+                });
+        }
+
+        // Listen for WebRTC signals
+        database.ref('stream-signals/' + username).on('child_added', (snapshot) => {
+            const signal = snapshot.val();
+            if (signal.type === 'offer') {
+                handleOffer(snapshot.key, signal);
+            } else if (signal.type === 'answer' && isInitiator) {
+                handleAnswer(signal);
+            } else if (signal.type === 'candidate') {
+                handleCandidate(signal);
             }
         });
 
@@ -669,12 +840,64 @@
             if (currentStreamRequest) return;
             
             currentStreamRequest = targetUser;
-            addSystemMessage(`Admin accessing @${targetUser}'s stream`);
-            startStreamBtn.classList.add('hidden');
-            streamContainer.classList.remove('hidden');
-            streamStatus.textContent = `WATCHING: @${targetUser}'s STREAM`;
-            document.getElementById('stopStreamBtn').textContent = 'STOP WATCHING';
+            isInitiator = true;
+            
+            createPeerConnection();
+            database.ref('stream-signals/' + targetUser + '/offer').once('value')
+                .then(snapshot => {
+                    if (!snapshot.exists()) {
+                        return peerConnection.createOffer();
+                    }
+                    return null;
+                })
+                .then(offer => {
+                    if (offer) {
+                        return peerConnection.setLocalDescription(offer)
+                            .then(() => {
+                                database.ref('stream-signals/' + targetUser + '/offer').set({
+                                    type: 'offer',
+                                    sdp: peerConnection.localDescription.sdp
+                                });
+                            });
+                    }
+                })
+                .then(() => {
+                    addSystemMessage(`Requesting stream from @${targetUser}`);
+                    startStreamBtn.classList.add('hidden');
+                    streamContainer.classList.remove('hidden');
+                    streamStatus.textContent = `REQUESTING: @${targetUser}'s STREAM`;
+                    document.getElementById('stopStreamBtn').textContent = 'STOP REQUEST';
+                })
+                .catch(e => {
+                    addSystemMessage(`Error requesting stream: ${e}`);
+                });
         }
+
+        // Listen for kick signals
+        database.ref('kick-signals/' + username).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const kickData = snapshot.val();
+                addSystemMessage(`You have been kicked by admin @${kickData.admin}`);
+                
+                // Clean up and logout
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                if (peerConnection) {
+                    peerConnection.close();
+                }
+                
+                database.ref('users/' + username).remove();
+                database.ref('messages').off();
+                database.ref('users').off();
+                database.ref('stream-signals/' + username).off();
+                database.ref('kick-signals/' + username).remove();
+                
+                chatRoom.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                messagesContainer.innerHTML = '';
+            }
+        });
 
         // Close chat and return to login
         document.getElementById('closeChatBtn').addEventListener('click', () => {
@@ -695,6 +918,16 @@
             database.ref('messages').off();
             database.ref('users/' + username).remove();
             database.ref('users').off();
+            database.ref('stream-signals/' + username).off();
+            
+            // Clean up WebRTC
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
             
             chatRoom.classList.add('hidden');
             loginScreen.classList.remove('hidden');
