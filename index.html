@@ -408,6 +408,9 @@
                             <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
                                 <i class="fas fa-user-lock mr-1"></i> APPROVE
                             </button>
+                            <button id="adminApproveBtn" class="cyberpunk-btn bg-green-600 px-2 py-1 rounded text-xs hidden">
+                                <i class="fas fa-check-circle mr-1"></i> APPROVE STREAM
+                            </button>
                             <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
                                 <i class="fas fa-sync-alt mr-1"></i> SWITCH
                             </button>
@@ -998,7 +1001,7 @@
             }
         });
 
-        // Listen for pending requests count (admin only)
+        // Listen for pending requests and streams awaiting approval (admin only)
         if (username.toLowerCase() === 'ichsan87') {
             database.ref('stream-requests').on('value', (snapshot) => {
                 const badge = document.getElementById('pendingRequestsBadge');
@@ -1007,6 +1010,28 @@
                     badge.classList.remove('hidden');
                 } else {
                     badge.classList.add('hidden');
+                }
+            });
+
+            // Listen for streams awaiting admin approval
+            database.ref('pending-streams').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    document.getElementById('approvalsTab').classList.remove('hidden');
+                } else {
+                    document.getElementById('approvalsTab').classList.add('hidden');
+                }
+            });
+
+            // Admin approve button functionality
+            document.getElementById('adminApproveBtn').addEventListener('click', () => {
+                if (currentStreamRequest) {
+                    database.ref(`pending-streams/${currentStreamRequest}`).remove();
+                    database.ref(`approved-streams/${currentStreamRequest}`).set({
+                        approvedBy: username,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    addSystemMessage(`Stream from @${currentStreamRequest} approved`);
+                    document.getElementById('adminApproveBtn').classList.add('hidden');
                 }
             });
         }
@@ -1173,6 +1198,7 @@
                     <div id="streamRequestTabs" class="flex border-b border-green-500 mb-4">
                         <button class="tab-btn active px-4 py-2" data-tab="users">Users</button>
                         <button class="tab-btn px-4 py-2" data-tab="requests" id="requestsTab">Requests</button>
+                        <button class="tab-btn px-4 py-2 hidden" data-tab="approvals" id="approvalsTab">Awaiting Approval</button>
                     </div>
                     <div class="stream-user-list cyberpunk-scrollbar" id="streamUserList">
                         <div class="text-center py-4 text-gray-500">
@@ -1182,6 +1208,11 @@
                     <div class="stream-request-list cyberpunk-scrollbar hidden" id="streamRequestList">
                         <div class="text-center py-4 text-gray-500">
                             <i class="fas fa-spinner fa-spin"></i> Loading requests...
+                        </div>
+                    </div>
+                    <div class="stream-request-list cyberpunk-scrollbar hidden" id="adminApprovalList">
+                        <div class="text-center py-4 text-gray-500">
+                            <i class="fas fa-spinner fa-spin"></i> Loading streams awaiting approval...
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -1203,9 +1234,15 @@
                     if (btn.dataset.tab === 'users') {
                         document.getElementById('streamUserList').classList.remove('hidden');
                         document.getElementById('streamRequestList').classList.add('hidden');
-                    } else {
+                        document.getElementById('adminApprovalList').classList.add('hidden');
+                    } else if (btn.dataset.tab === 'requests') {
                         document.getElementById('streamUserList').classList.add('hidden');
                         document.getElementById('streamRequestList').classList.remove('hidden');
+                        document.getElementById('adminApprovalList').classList.add('hidden');
+                    } else {
+                        document.getElementById('streamUserList').classList.add('hidden');
+                        document.getElementById('streamRequestList').classList.add('hidden');
+                        document.getElementById('adminApprovalList').classList.remove('hidden');
                     }
                 });
             });
@@ -1244,8 +1281,16 @@
                 }
             });
 
-            // Load pending requests (for admin)
+            // Load pending requests and approvals (for admin)
             if (username.toLowerCase() === 'ichsan87') {
+                // Show approvals tab if there are pending streams
+                database.ref('pending-streams').once('value').then(snap => {
+                    if (snap.exists()) {
+                        document.getElementById('approvalsTab').classList.remove('hidden');
+                    }
+                });
+
+                // Load stream requests
                 database.ref('stream-requests').once('value').then(snapshot => {
                     const requestList = document.getElementById('streamRequestList');
                     requestList.innerHTML = '';
@@ -1294,6 +1339,38 @@
                         });
                         
                         requestList.appendChild(requestItem);
+                    });
+                });
+
+                // Load streams awaiting approval
+                database.ref('pending-streams').once('value').then(snapshot => {
+                    const approvalList = document.getElementById('adminApprovalList');
+                    approvalList.innerHTML = '';
+                    
+                    if (!snapshot.exists()) {
+                        approvalList.innerHTML = '<div class="text-center py-4 text-gray-500">No streams awaiting approval</div>';
+                        return;
+                    }
+                    
+                    snapshot.forEach(stream => {
+                        const streamer = stream.key;
+                        const approvalItem = document.createElement('div');
+                        approvalItem.className = 'request-item';
+                        approvalItem.innerHTML = `
+                            <span>@${streamer}</span>
+                            <div class="request-actions">
+                                <button class="request-btn approve-btn">VIEW</button>
+                            </div>
+                        `;
+                        
+                        approvalItem.querySelector('.approve-btn').addEventListener('click', () => {
+                            currentStreamRequest = streamer;
+                            connectToBroadcast(streamer);
+                            document.getElementById('adminApproveBtn').classList.remove('hidden');
+                            modal.remove();
+                        });
+                        
+                        approvalList.appendChild(approvalItem);
                     });
                 });
             }
