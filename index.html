@@ -329,6 +329,9 @@
                 <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-trash mr-1"></i> <span class="hidden md:inline">CLEAR</span>
                 </button>
+                <button id="kickBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden bg-red-600">
+                    <i class="fas fa-user-slash mr-1"></i> <span class="hidden md:inline">KICK</span>
+                </button>
                 <button id="closeChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm">
                     <i class="fas fa-times mr-1"></i> <span class="hidden md:inline">CLOSE</span>
                 </button>
@@ -475,6 +478,7 @@
                 currentUser.classList.add('text-purple-500');
                 currentUser.innerHTML = username + ' <span class="text-xs">(ADMIN)</span>';
                 document.getElementById('clearChatBtn').classList.remove('hidden');
+                document.getElementById('kickBtn').classList.remove('hidden');
             }
             // Show stream buttons for all users
             document.getElementById('startStreamBtn').classList.remove('hidden');
@@ -600,6 +604,17 @@
         }
         
         // Clear chat history
+        // Kick user functionality
+        document.getElementById('kickBtn').addEventListener('click', () => {
+            const kickUser = prompt('Enter username to kick:');
+            if (kickUser) {
+                if (confirm(`Are you sure you want to kick @${kickUser}?`)) {
+                    // In a real app, you would remove the user from Firebase
+                    addSystemMessage(`ADMIN: @${kickUser} has been kicked from the chat`);
+                }
+            }
+        });
+
         clearChatBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to delete all chat history?')) {
                 database.ref('messages').remove()
@@ -648,41 +663,23 @@
                 approveBtn.classList.remove('bg-yellow-600');
                 approveBtn.classList.add('bg-green-600');
                 addSystemMessage(`@${username} GRANTED STREAM ACCESS`);
+                
+                // In a real app, you would:
+                // 1. Save approval status to Firebase
+                // 2. Notify the requester
+                // 3. Start the stream for approved users
             } else {
                 // Revoke access
                 approveBtn.innerHTML = '<i class="fas fa-user-lock mr-1"></i> APPROVE';
                 approveBtn.classList.remove('bg-green-600');
                 approveBtn.classList.add('bg-yellow-600');
                 addSystemMessage(`@${username} REVOKED STREAM ACCESS`);
-            }
-            // In a real app, you would notify the requester here via Firebase
-        });
-
-        // Show approve button only to stream owner when someone requests
-        // In a real app, you'd check Firebase for pending requests
-
-        // Handle stream approval
-        document.getElementById('approveBtn').addEventListener('click', () => {
-            const approveBtn = document.getElementById('approveBtn');
-            if (approveBtn.textContent.includes('APPROVE')) {
-                // Grant access to specific users or all
-                approveBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> APPROVED';
-                approveBtn.classList.remove('bg-yellow-600');
-                approveBtn.classList.add('bg-green-600');
-                addSystemMessage(`@${username} GRANTED STREAM ACCESS`);
-            } else {
-                // Revoke access
-                approveBtn.innerHTML = '<i class="fas fa-user-lock mr-1"></i> APPROVE';
-                approveBtn.classList.remove('bg-green-600');
-                approveBtn.classList.add('bg-yellow-600');
-                addSystemMessage(`@${username} REVOKED STREAM ACCESS`);
+                
+                // In a real app, you would:
+                // 1. Update approval status in Firebase 
+                // 2. Stop the stream for revoked users
             }
         });
-
-        // Show approve button only for admin
-        if (username.toLowerCase() === 'ichsan87') {
-            document.getElementById('approveBtn').classList.remove('hidden');
-        }
 
         // Close chat and return to login
         document.getElementById('closeChatBtn').addEventListener('click', () => {
@@ -797,4 +794,3 @@
     </script>
 <p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ican69/lynchat" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
 </html>
-
