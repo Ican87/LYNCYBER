@@ -319,7 +319,7 @@
                 <div class="text-xs md:text-sm">
                     <span id="currentUser" class="text-green-400">GUEST</span>
                 </div>
-                <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2">
+                <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
                     <i class="fas fa-video mr-1"></i> <span class="hidden md:inline">STREAM</span>
                 </button>
                 <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden" title="Request stream from another user">
@@ -469,9 +469,8 @@
                 currentUser.classList.add('text-purple-500');
                 currentUser.innerHTML = username + ' <span class="text-xs">(ADMIN)</span>';
                 document.getElementById('clearChatBtn').classList.remove('hidden');
+                document.getElementById('startStreamBtn').classList.remove('hidden');
                 document.getElementById('requestStreamBtn').classList.remove('hidden');
-            } else {
-                currentUser.innerHTML = username;
             }
             
             loginScreen.classList.add('hidden');
@@ -608,23 +607,15 @@
 
         // Handle streaming
         startStreamBtn.addEventListener('click', async () => {
-            // Check if user is admin
-            if (username.toLowerCase() === 'ichsan87') {
-                try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: true, 
-                        audio: true 
-                    });
-                    streamVideo.srcObject = mediaStream;
-                    streamContainer.classList.remove('hidden');
-                    startStreamBtn.classList.add('hidden');
-                    addSystemMessage(`@${username} (ADMIN) STARTED A LIVE STREAM`);
-                } catch (err) {
-                    addSystemMessage(`STREAM ERROR: ${err.message}`);
-                }
-            } else {
-                addSystemMessage('STREAM: Only admin can start live streams');
-            }
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: true 
+                });
+                streamVideo.srcObject = mediaStream;
+                streamContainer.classList.remove('hidden');
+                startStreamBtn.classList.add('hidden');
+                addSystemMessage(`@${username} STARTED A LIVE STREAM`);
             } catch (err) {
                 addSystemMessage(`STREAM ERROR: ${err.message}`);
             }
