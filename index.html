@@ -796,6 +796,9 @@
                 startStreamBtn.classList.remove('hidden');
                 addSystemMessage(`@${username} ENDED THE STREAM`);
                 
+                // Remove any pending approval requests
+                database.ref(`stream-requests/${username}`).remove();
+                
                 if (peerConnection) {
                     peerConnection.close();
                     peerConnection = null;
@@ -1000,11 +1003,15 @@
                 const request = snapshot.val();
                 const approveBtn = document.getElementById('approveBtn');
                 
-                if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
-                    // Store requester info
-                    approveBtn.dataset.requester = request.requester;
-                    // Always show approval button regardless of streaming status
-                    approveBtn.classList.remove('hidden');
+                // Only show approval option if currently streaming
+                if (streamContainer.classList.contains('hidden') === false) {
+                    if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
+                        // Store requester info
+                        approveBtn.dataset.requester = request.requester;
+                        approveBtn.classList.remove('hidden');
+                    }
+                } else {
+                    addSystemMessage(`Admin @${request.requester} requested stream but you're not broadcasting`);
                 }
                 
                 // Remove the request
