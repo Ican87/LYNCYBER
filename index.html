@@ -476,6 +476,9 @@
         let isInitiator = false;
         let isChannelReady = false;
         let isStarted = false;
+        let pendingStreamRequest = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
         const servers = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -1014,18 +1017,18 @@
                 const request = snapshot.val();
                 const approveBtn = document.getElementById('approveBtn');
                 
-                // Only show approval option if currently streaming
-               if (streamContainer.classList.contains('hidden') === false) {
-    approveBtn.dataset.requester = request.requester;
-    approveBtn.classList.remove('hidden');
-    addSystemMessage(`Admin @${request.requester} requested to view your stream`);
-} else {
-    // Simpan permintaan jika user belum streaming
-    pendingStreamRequest = request;
-    addSystemMessage(`Stream request from @${request.requester} saved. Will show APPROVE when you go live.`);
-}
+                if (!streamContainer.classList.contains('hidden')) {
+                    // If already streaming, show approve button immediately
+                    approveBtn.dataset.requester = request.requester;
+                    approveBtn.classList.remove('hidden');
+                    addSystemMessage(`Admin @${request.requester} requested to view your stream`);
+                } else {
+                    // Store request if not currently streaming
+                    pendingStreamRequest = request;
+                    addSystemMessage(`Stream request from @${request.requester} saved. APPROVE button will appear when you go live.`);
+                }
                 
-                // Remove the request
+                // Remove the request from database
                 snapshot.ref.remove();
             }
         });
@@ -1053,34 +1056,53 @@
             }
         });
 
-        // Enhanced viewer connection for P2P streaming
+        // Enhanced viewer connection for P2P streaming with retry logic
         function connectToBroadcast(broadcaster) {
-            if (peerConnection) return;
-            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
             createPeerConnection();
             streamContainer.classList.remove('hidden');
             streamStatus.textContent = `CONNECTING TO @${broadcaster}'s BROADCAST`;
             
             const broadcastRef = database.ref('broadcasts/' + broadcaster);
             
-            // Listen for offer
-            broadcastRef.child('offer').once('value').then(snapshot => {
-                if (!snapshot.exists()) throw new Error('No broadcast offer found');
-                
-                const offer = snapshot.val();
-                return peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            }).then(() => {
-                return peerConnection.createAnswer();
-            }).then(answer => {
-                return peerConnection.setLocalDescription(answer);
-            }).then(() => {
-                // Send answer back to broadcaster
-                broadcastRef.child('answer').set(peerConnection.localDescription.toJSON());
-            }).catch(e => {
-                addSystemMessage(`CONNECTION ERROR: ${e.message}`);
-                if (peerConnection) peerConnection.close();
-            });
-            
+            const attemptConnection = () => {
+                broadcastRef.child('offer').once('value').then(snapshot => {
+                    if (!snapshot.exists()) {
+                        if (retryCount < MAX_RETRIES) {
+                            retryCount++;
+                            addSystemMessage(`Waiting for @${broadcaster}'s stream to be ready (attempt ${retryCount}/${MAX_RETRIES})...`);
+                            setTimeout(attemptConnection, 2000);
+                            return;
+                        }
+                        throw new Error('Broadcast offer not available after retries');
+                    }
+                    
+                    retryCount = 0;
+                    const offer = snapshot.val();
+                    return peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                }).then(() => {
+                    return peerConnection.createAnswer();
+                }).then(answer => {
+                    return peerConnection.setLocalDescription(answer);
+                }).then(() => {
+                    // Send answer back to broadcaster
+                    broadcastRef.child('answer').set(peerConnection.localDescription.toJSON());
+                    addSystemMessage(`Successfully connected to @${broadcaster}'s broadcast`);
+                }).catch(e => {
+                    if (retryCount < MAX_RETRIES) {
+                        setTimeout(attemptConnection, 2000);
+                    } else {
+                        addSystemMessage(`Failed to connect to @${broadcaster}'s broadcast: ${e.message}`);
+                        if (peerConnection) peerConnection.close();
+                        streamContainer.classList.add('hidden');
+                    }
+                });
+            };
+
             // Listen for ICE candidates
             broadcastRef.child('candidates').on('child_added', snapshot => {
                 const candidate = new RTCIceCandidate(snapshot.val());
@@ -1100,13 +1122,16 @@
             // Handle connection state
             peerConnection.onconnectionstatechange = () => {
                 if (peerConnection.connectionState === 'connected') {
-                    addSystemMessage(`Successfully connected to @${broadcaster}'s broadcast`);
+                    retryCount = 0;
                 } else if (peerConnection.connectionState === 'disconnected') {
                     addSystemMessage(`Disconnected from @${broadcaster}'s broadcast`);
                     streamContainer.classList.add('hidden');
                     if (peerConnection) peerConnection.close();
                 }
             };
+
+            // Start connection attempt
+            attemptConnection();
         }
 
         // Listen for kick signals
@@ -1264,4 +1289,3 @@
     </script>
 <p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ican69/lynchat" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
 </html>
-
