@@ -967,25 +967,16 @@
                 });
         }
 
-   function handleCandidate(candidate) {
-    if (!peerConnection || !peerConnection.remoteDescription || !peerConnection.remoteDescription.type) {
-        console.warn('[DELAY] ICE candidate sebelum remoteDescription, retry...');
-        setTimeout(() => handleCandidate(candidate), 300);
-        return;
-    }
-
-    const iceCandidate = new RTCIceCandidate({
-        sdpMLineIndex: candidate.label,
-        candidate: candidate.candidate
-    });
-
-    peerConnection.addIceCandidate(iceCandidate)
-        .then(() => console.log('[ICE] Candidate added'))
-        .catch(e => {
-            console.error('[ICE ERROR]', e);
-            addSystemMessage(`ICE error: ${e.message}`);
-        });
-}
+        function handleCandidate(candidate) {
+            const iceCandidate = new RTCIceCandidate({
+                sdpMLineIndex: candidate.label,
+                candidate: candidate.candidate
+            });
+            peerConnection.addIceCandidate(iceCandidate)
+                .catch(e => {
+                    addSystemMessage(`Error adding ICE candidate: ${e}`);
+                });
+        }
 
         // Listen for WebRTC signals
         database.ref('stream-signals/' + username).on('child_added', (snapshot) => {
@@ -1017,7 +1008,28 @@
 });
 
         // Listen for streamer requests
-  
+        database.ref('streamerRequest/' + username).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const request = snapshot.val();
+                if (confirm(`@${request.requester} wants to view your stream. Approve?`)) {
+                    database.ref('streamerAnswers/' + request.requester).set({
+                        broadcaster: username,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+                snapshot.ref.remove();
+            }
+        });
+
+        // Listen for streamer answers
+        database.ref('streamerAnswers/' + username).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const answer = snapshot.val();
+                connectToBroadcast(answer.broadcaster);
+                snapshot.ref.remove();
+            }
+        });
+
 
         // Enhanced viewer connection for P2P streaming with retry logic
         function connectToBroadcast(broadcaster) {
@@ -1219,24 +1231,13 @@
                         const userItem = document.createElement('div');
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
- userItem.addEventListener('click', () => {
-    if (user.key) {
-        connectToBroadcast(user.key); // langsung connect
-        modal.remove();
-    }
-});
-                        
-    if (user.key) {
-        // Kirim permintaan via Firebase
-        database.ref('streamerRequest/' + user.key).set({
-            requester: username,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-
-        addSystemMessage(`Request sent to @${user.key}, waiting for approval...`);
-        modal.remove();
-    }
-});
+                        userItem.addEventListener('click', () => {
+                            if (user.key) {
+                                // Directly connect without approval
+                                connectToBroadcast(user.key);
+                                modal.remove();
+                            }
+                        });
                         userList.appendChild(userItem);
                     }
                 });
@@ -1263,5 +1264,141 @@
             }
         }, 10000);
     </script>
-<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ican69/lynchat" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ican69/lynchat" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LYNCHAT Stream Fixed</title>
+</head>
+<body>
+<!-- PATCHED STREAM SCRIPTS -->
+<!-- ... seluruh isi script hasil patch ... -->
+<!-- Untuk keperluan demo/testing, developer bisa copy bagian <script> ke dalam file utama -->
+</body>
+</html>
+
+<!-- PATCH: handleCandidate() -->
+<script>
+function handleCandidate(candidate) {
+    if (!peerConnection || !peerConnection.remoteDescription || !peerConnection.remoteDescription.type) {
+        console.warn('[DELAY] ICE candidate sebelum remoteDescription, retry...');
+        setTimeout(() => handleCandidate(candidate), 300);
+        return;
+    }
+    const iceCandidate = new RTCIceCandidate({
+        sdpMLineIndex: candidate.label,
+        candidate: candidate.candidate
+    });
+    peerConnection.addIceCandidate(iceCandidate)
+        .then(() => console.log('[ICE] Candidate added'))
+        .catch(e => {
+            console.error('[ICE ERROR]', e);
+            addSystemMessage(`ICE error: ${e.message}`);
+        });
+}
+</script>
+
+<!-- PATCH: Kirim permintaan dari admin ke user -->
+<script>
+userItem.addEventListener('click', () => {
+    if (user.key) {
+        database.ref('streamerRequest/' + user.key).set({
+            requester: username || 'admin',
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        addSystemMessage(`Stream request sent to @${user.key}. Waiting for approval...`);
+        modal.remove();
+    }
+});
+</script>
+
+<!-- PATCH: User menerima dan approve permintaan -->
+<script>
+database.ref('streamerRequest/' + username).on('value', (snapshot) => {
+    if (snapshot.exists()) {
+        const request = snapshot.val();
+        console.log('[USER RECEIVED REQUEST]', request);
+        if (request && request.requester) {
+            if (confirm(`@${request.requester} wants to view your stream. Approve?`)) {
+                database.ref('streamerAnswers/' + request.requester).set({
+                    broadcaster: username,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+            }
+        } else {
+            console.warn('[WARN] Permintaan tidak valid:', request);
+        }
+        snapshot.ref.remove();
+    }
+});
+</script>
+
+<!-- PATCH: Admin menerima jawaban dan connect -->
+<script>
+database.ref('streamerAnswers/' + username).on('value', (snapshot) => {
+    if (snapshot.exists()) {
+        const answer = snapshot.val();
+        console.log('[RECEIVED ANSWER]', answer);
+        if (answer && answer.broadcaster) {
+            connectToBroadcast(answer.broadcaster);
+        } else {
+            addSystemMessage('Invalid broadcaster answer received');
+        }
+        snapshot.ref.remove();
+    }
+});
+</script>
+
+<!-- PATCH: connectToBroadcast() dengan validasi -->
+<script>
+function connectToBroadcast(broadcaster) {
+    if (!broadcaster) {
+        addSystemMessage('[ERROR] Invalid broadcaster');
+        return;
+    }
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    createPeerConnection();
+    streamContainer.classList.remove('hidden');
+    streamStatus.textContent = `CONNECTING TO @${broadcaster}'s BROADCAST`;
+    const broadcastRef = database.ref('broadcasts/' + broadcaster);
+    retryCount = 0;
+    const attemptConnection = () => {
+        broadcastRef.child('offer').once('value').then(snapshot => {
+            if (!snapshot.exists()) throw new Error('No offer yet');
+            const offer = snapshot.val();
+            return peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        }).then(() => peerConnection.createAnswer())
+          .then(answer => peerConnection.setLocalDescription(answer))
+          .then(() => {
+            broadcastRef.child('answer').set(peerConnection.localDescription.toJSON());
+            addSystemMessage(`Admin connected to @${broadcaster}'s stream`);
+          }).catch(err => {
+            retryCount++;
+            if (retryCount < MAX_RETRIES) {
+                addSystemMessage(`[WAITING] Stream from @${broadcaster} not ready, retrying (${retryCount})...`);
+                setTimeout(attemptConnection, 1000);
+            } else {
+                addSystemMessage(`❌ Failed to connect: ${err.message}`);
+                streamContainer.classList.add('hidden');
+            }
+        });
+    };
+    broadcastRef.child('candidates').on('child_added', snapshot => {
+        const candidate = snapshot.val();
+        handleCandidate(candidate);
+    });
+    peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+            streamVideo.srcObject = event.streams[0];
+            streamStatus.textContent = `WATCHING @${broadcaster}'s BROADCAST`;
+        }
+    };
+    attemptConnection();
+}
+</script>
+</body>
 </html>
