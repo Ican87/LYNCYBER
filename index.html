@@ -1157,10 +1157,17 @@
             chatRoom.classList.add('hidden');
             loginScreen.classList.remove('hidden');
             
-            // Reset chat state
+            // Reset chat state and verification
             messagesContainer.innerHTML = '';
             messageInput.value = '';
             characterCount.textContent = '0/200';
+            isFollowing = false;
+            followStatus.classList.add('hidden');
+            verifyBtn.classList.remove('hidden');
+            verifyBtn.innerHTML = '<span class="gear-icon"></span> VERIFY';
+            joinBtn.disabled = true;
+            joinBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            joinBtn.innerHTML = '<span>ACCESS DENIED</span> <i class="fas fa-lock ml-2"></i>';
         });
 
         // Terminal-like blinking cursor effect
