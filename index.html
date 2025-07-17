@@ -732,7 +732,18 @@
                 document.getElementById('switchCameraBtn').classList.remove('hidden');
                 document.getElementById('approveBtn').classList.add('hidden');
                 addSystemMessage(`@${username} STARTED A P2P BROADCAST`);
-                
+
+                // ⬇️ Tambahan pengecekan ulang permintaan stream
+        database.ref(`stream-requests/${username}`).once('value').then(snapshot => {
+            if (snapshot.exists()) {
+                const request = snapshot.val();
+                const approveBtn = document.getElementById('approveBtn');
+                approveBtn.dataset.requester = request.requester;
+                approveBtn.classList.remove('hidden');
+                addSystemMessage(`You have a pending stream request from @${request.requester}`);
+                snapshot.ref.remove();
+            }
+        });
                 // Create signaling channel for broadcast
                 const broadcastRef = database.ref('broadcasts/' + username);
                 broadcastRef.set({
