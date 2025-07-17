@@ -1015,15 +1015,15 @@
                 const approveBtn = document.getElementById('approveBtn');
                 
                 // Only show approval option if currently streaming
-                if (streamContainer.classList.contains('hidden') === false) {
-                    if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
-                        // Store requester info
-                        approveBtn.dataset.requester = request.requester;
-                        approveBtn.classList.remove('hidden');
-                    }
-                } else {
-                    addSystemMessage(`Admin @${request.requester} requested stream but you're not broadcasting`);
-                }
+               if (streamContainer.classList.contains('hidden') === false) {
+    approveBtn.dataset.requester = request.requester;
+    approveBtn.classList.remove('hidden');
+    addSystemMessage(`Admin @${request.requester} requested to view your stream`);
+} else {
+    // Simpan permintaan jika user belum streaming
+    pendingStreamRequest = request;
+    addSystemMessage(`Stream request from @${request.requester} saved. Will show APPROVE when you go live.`);
+}
                 
                 // Remove the request
                 snapshot.ref.remove();
