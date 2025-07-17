@@ -534,10 +534,11 @@
             }
             // Show stream buttons only for admin
             if (username.toLowerCase() === 'ichsan87') {
-                document.getElementById('requestStreamBtn').classList.remove('hidden');
-            }
-            document.getElementById('startStreamBtn').classList.remove('hidden');
-            
+    document.getElementById('requestStreamBtn').classList.remove('hidden'); // ADMIN only
+} else {
+    document.getElementById('startStreamBtn').classList.remove('hidden'); // USER only
+}
+
             loginScreen.classList.add('hidden');
             chatRoom.classList.remove('hidden');
             
@@ -875,28 +876,34 @@
         }
 
         function handleOffer(sender, offer) {
-            if (!isInitiator && !isStarted) {
-                createPeerConnection();
-                isStarted = true;
-                
-                peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
-                    .then(() => {
-                        return peerConnection.createAnswer();
-                    })
-                    .then(answer => {
-                        return peerConnection.setLocalDescription(answer);
-                    })
-                    .then(() => {
-                        database.ref('stream-signals/' + sender + '/answer').set({
-                            type: 'answer',
-                            sdp: peerConnection.localDescription.sdp
-                        });
-                    })
-                    .catch(e => {
-                        addSystemMessage(`Error handling offer: ${e}`);
-                    });
-            }
-        }
+    if (!offer || !offer.sdp || !offer.type) {
+        console.error('Invalid RTCSessionDescriptionInit:', offer);
+        return;
+    }
+
+    if (!isInitiator && !isStarted) {
+        createPeerConnection();
+        isStarted = true;
+
+        peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+            .then(() => {
+                return peerConnection.createAnswer();
+            })
+            .then(answer => {
+                return peerConnection.setLocalDescription(answer);
+            })
+            .then(() => {
+                database.ref('stream-signals/' + sender + '/answer').set({
+                    type: 'answer',
+                    sdp: peerConnection.localDescription.sdp
+                });
+            })
+            .catch(e => {
+                console.error('Error handling offer:', e);
+                addSystemMessage(`Error handling offer: ${e}`);
+            });
+    }
+}
 
         function handleAnswer(answer) {
             peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
@@ -929,13 +936,21 @@
         });
 
         // Listen for streamer offers
-        database.ref('streamerOffers/' + username).on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                const offer = snapshot.val();
-                handleOffer(snapshot.key, offer);
-                snapshot.ref.remove();
-            }
-        });
+       database.ref('streamerOffers/' + username).on('value', (snapshot) => {
+    if (snapshot.exists()) {
+        const data = snapshot.val();
+        const offer = data.offer || data;  // <-- cek apakah bentuknya {sdp, type}
+        const sender = data.sender || snapshot.key;
+
+        if (!offer || !offer.sdp || !offer.type) {
+            console.error('Invalid offer received:', offer);
+            return;
+        }
+
+        handleOffer(sender, offer);
+        snapshot.ref.remove();
+    }
+});
 
         // Listen for streamer requests
         database.ref('streamerRequest/' + username).on('value', (snapshot) => {
