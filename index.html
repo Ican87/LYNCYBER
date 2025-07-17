@@ -381,18 +381,19 @@
                             <span id="streamStatus">LIVE STREAM</span>
                         </div>
                         <div class="flex space-x-2">
-  <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
-    <i class="fas fa-user-lock mr-1"></i> APPROVE
-  </button>
-
-  <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
-    <i class="fas fa-sync-alt mr-1"></i> SWITCH
-  </button>
-
-  <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
-    <i class="fas fa-stop mr-1"></i> STOP
-  </button>
-</div>
+                            <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
+                                <i class="fas fa-user-lock mr-1"></i> APPROVE
+                            </button>
+                            <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
+                                <i class="fas fa-sync-alt mr-1"></i> SWITCH
+                            </button>
+                            <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
+                                <i class="fas fa-stop mr-1"></i> STOP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Messages -->
             <div id="messages" class="flex-1 overflow-y-auto p-4 cyberpunk-scrollbar space-y-4">
@@ -400,20 +401,13 @@
             
             <!-- Input Area -->
             <div class="border-t border-green-500 p-4">
-             <div class="flex space-x-2">
-  <!-- ✅ Tambahkan di sini -->
-  <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
-    <i class="fas fa-user-lock mr-1"></i> APPROVE
-  </button>
-
-  <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
-    <i class="fas fa-sync-alt mr-1"></i> SWITCH
-  </button>
-
-  <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
-    <i class="fas fa-stop mr-1"></i> STOP
-  </button>
-</div>
+                <div class="flex space-x-2">
+                    <input type="text" id="messageInput" class="cyberpunk-input flex-1 rounded" placeholder="TYPE YOUR MESSAGE..." disabled>
+                    <button id="sendBtn" class="cyberpunk-btn px-4 rounded flex items-center justify-center" disabled>
+                        <i class="fas fa-paper-plane mr-2"></i>
+                        <span>SEND</span>
+                    </button>
+                </div>
                 <div class="flex justify-between mt-2 text-[10px] md:text-xs text-gray-500">
                     <div>
                         <span id="typingIndicator"></span>
@@ -569,30 +563,23 @@
     });
 
     // ✅ HANYA untuk user biasa → listen stream request dari admin
-   if (!isAdmin) {
-    database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
-        if (snapshot.exists()) {
-            const request = snapshot.val();
-            const approveBtn = document.getElementById('approveBtn');
+    if (!isAdmin) {
+        database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const request = snapshot.val();
+                const approveBtn = document.getElementById('approveBtn');
 
-            console.log('[USER] Stream request received:', request);
-            console.log('approveBtn:', approveBtn);
+                console.log('[USER] Received stream request:', request);
 
-            if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
-                if (approveBtn) {
+                if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
                     approveBtn.dataset.requester = request.requester;
                     approveBtn.classList.remove('hidden');
-                    approveBtn.style.display = 'inline-block'; // pastikan terlihat
-                    console.log('[USER] Approve button shown');
-                } else {
-                    console.error('[USER] ERROR: approveBtn not found in DOM');
                 }
-            }
 
-            snapshot.ref.remove();
-        }
-    });
-}
+                snapshot.ref.remove(); // bersihkan permintaan
+            }
+        });
+    }
 });
 
         
