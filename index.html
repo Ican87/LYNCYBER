@@ -337,14 +337,14 @@
     </div>
     
     <!-- Chat Room -->
-    <div id="chatRoom" class="hidden w-full max-w-4xl h-[70vh] cyberpunk-box rounded-lg relative overflow-hidden">
+    <div id="chatRoom" class="hidden w-full max-w-4xl h-[80vh] md:h-[70vh] cyberpunk-box rounded-lg relative overflow-hidden">
         <div class="absolute inset-0 bg-black opacity-90"></div>
         <div class="relative z-10 h-full flex flex-col">
             <!-- Header -->
-            <div class="border-b border-green-500 p-3 md:p-4 flex justify-between items-center">
-                <div>
-                    <h2 class="cyberpunk-font text-lg md:text-xl">LYNCHAT</h2>
-                    <div class="flex items-center text-[10px] md:text-xs">
+            <div class="border-b border-green-500 p-2 md:p-4 flex flex-wrap justify-between items-center gap-2">
+                <div class="order-1">
+                    <h2 class="cyberpunk-font text-base md:text-xl">LYNCHAT</h2>
+                    <div class="flex items-center text-[10px] md:text-xs whitespace-nowrap">
                         <div class="w-2 h-2 bg-green-500 rounded-full mr-2 pulse"></div>
                         <span id="connectionStatus">CONNECTING...</span>
                     </div>
@@ -355,21 +355,23 @@
                 <div class="text-xs md:text-sm">
                     <span id="currentUser" class="text-green-400">GUEST</span>
                 </div>
-                <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
-                    <span class="gear-icon"></span> <span class="hidden md:inline">STREAM</span>
-                </button>
-                <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden" title="Request stream from another user">
-                    <span class="gear-icon"></span> <span class="hidden md:inline">REQUEST</span>
-                </button>
-                <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden">
-                    <span class="gear-icon"></span> <span class="hidden md:inline">CLEAR</span>
-                </button>
-                <button id="kickBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm mr-2 hidden bg-red-600">
-                    <span class="gear-icon"></span> <span class="hidden md:inline">KICK</span>
-                </button>
-                <button id="closeChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-[10px] md:px-3 md:text-sm">
-                    <span class="gear-icon"></span> <span class="hidden md:inline">CLOSE</span>
-                </button>
+                <div class="flex order-3 md:order-2 gap-1">
+                    <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden">
+                        <span class="gear-icon"></span> <span class="hidden sm:inline">STREAM</span>
+                    </button>
+                    <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden" title="Request stream">
+                        <span class="gear-icon"></span> <span class="hidden sm:inline">REQUEST</span>
+                    </button>
+                    <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden">
+                        <span class="gear-icon"></span> <span class="hidden sm:inline">CLEAR</span>
+                    </button>
+                    <button id="kickBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden bg-red-600">
+                        <span class="gear-icon"></span> <span class="hidden sm:inline">KICK</span>
+                    </button>
+                    <button id="closeChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm">
+                        <span class="gear-icon"></span> <span class="hidden sm:inline">CLOSE</span>
+                    </button>
+                </div>
             </div>
             
             <!-- Stream Container -->
@@ -396,19 +398,19 @@
             </div>
             
             <!-- Messages -->
-            <div id="messages" class="flex-1 overflow-y-auto p-4 cyberpunk-scrollbar space-y-4">
+            <div id="messages" class="flex-1 overflow-y-auto p-2 md:p-4 cyberpunk-scrollbar space-y-2 md:space-y-4">
             </div>
             
             <!-- Input Area -->
-            <div class="border-t border-green-500 p-4">
-                <div class="flex space-x-2">
-                    <input type="text" id="messageInput" class="cyberpunk-input flex-1 rounded" placeholder="TYPE YOUR MESSAGE..." disabled>
-                    <button id="sendBtn" class="cyberpunk-btn px-4 rounded flex items-center justify-center" disabled>
-                        <i class="fas fa-paper-plane mr-2"></i>
-                        <span>SEND</span>
+            <div class="border-t border-green-500 p-2 md:p-4">
+                <div class="flex gap-2">
+                    <input type="text" id="messageInput" class="cyberpunk-input flex-1 rounded text-sm md:text-base" placeholder="TYPE MESSAGE..." disabled>
+                    <button id="sendBtn" class="cyberpunk-btn px-3 md:px-4 rounded flex items-center justify-center" disabled>
+                        <i class="fas fa-paper-plane md:mr-2"></i>
+                        <span class="hidden sm:inline">SEND</span>
                     </button>
                 </div>
-                <div class="flex justify-between mt-2 text-[10px] md:text-xs text-gray-500">
+                <div class="flex justify-between mt-1 text-[9px] md:text-xs text-gray-500">
                     <div>
                         <span id="typingIndicator"></span>
                     </div>
@@ -653,14 +655,14 @@
             
             const bubble = document.createElement('div');
             const isAdmin = sender.toLowerCase() === 'ichsan87';
-            bubble.className = `max-w-xs md:max-w-md rounded-lg px-4 py-2 ${isCurrentUser ? 'bg-green-900 bg-opacity-50' : 'bg-gray-900 bg-opacity-50'} ${isAdmin ? 'border border-purple-500' : ''}`;
+            bubble.className = `max-w-[80%] md:max-w-md rounded-lg px-3 py-1 md:px-4 md:py-2 ${isCurrentUser ? 'bg-green-900 bg-opacity-50' : 'bg-gray-900 bg-opacity-50'} ${isAdmin ? 'border border-purple-500' : ''}`;
             
             const senderSpan = document.createElement('span');
-            senderSpan.className = `text-lg font-bold ${isAdmin ? 'text-purple-500' : 'text-white'}`;
+            senderSpan.className = `text-sm md:text-lg font-bold ${isAdmin ? 'text-purple-500' : 'text-white'}`;
             senderSpan.textContent = `@${sender}`;
             
             const textDiv = document.createElement('div');
-            textDiv.className = 'mt-1 text-lg font-semibold';
+            textDiv.className = 'mt-1 text-sm md:text-lg font-semibold';
             textDiv.textContent = text;
             
             bubble.appendChild(senderSpan);
