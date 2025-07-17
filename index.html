@@ -522,47 +522,66 @@
         
         // Join chat room
         joinBtn.addEventListener('click', () => {
-            username = nicknameInput.value.trim() || 'ANONYMOUS_' + Math.floor(Math.random() * 1000);
-            currentUser.textContent = username;
-            
-            // Check if user is admin
-            if (username.toLowerCase() === 'ichsan87') {
-                currentUser.classList.add('text-purple-500');
-                currentUser.innerHTML = username + ' <span class="text-xs">(ADMIN)</span>';
-                document.getElementById('clearChatBtn').classList.remove('hidden');
-                document.getElementById('kickBtn').classList.remove('hidden');
-            }
-            // Show stream buttons only for admin
-            if (username.toLowerCase() === 'ichsan87') {
-    document.getElementById('requestStreamBtn').classList.remove('hidden'); // ADMIN only
-} else {
-    document.getElementById('startStreamBtn').classList.remove('hidden'); // USER only
-}
+    username = nicknameInput.value.trim() || 'ANONYMOUS_' + Math.floor(Math.random() * 1000);
+    currentUser.textContent = username;
 
-            loginScreen.classList.add('hidden');
-            chatRoom.classList.remove('hidden');
-            
-            // Connect to Firebase
-            connectToChat();
-            
-            // Listen for new messages
-            const messagesRef = database.ref('messages');
-            messagesRef.orderByChild('timestamp').limitToLast(100).on('child_added', (snapshot) => {
-                const message = snapshot.val();
-                addMessage(message.sender, message.text, message.sender === username);
-            });
-            
-            // Update user count
-            const usersRef = database.ref('users/' + username);
-            usersRef.set(true);
-            usersRef.onDisconnect().remove();
-            
-            const userCountRef = database.ref('users');
-            userCountRef.on('value', (snapshot) => {
-                const count = snapshot.numChildren();
-                userCount.textContent = count;
-            });
+    // Deteksi admin
+    const isAdmin = username.toLowerCase() === 'ichsan87';
+
+    if (isAdmin) {
+        currentUser.classList.add('text-purple-500');
+        currentUser.innerHTML = `${username} <span class="text-xs">(ADMIN)</span>`;
+        document.getElementById('clearChatBtn').classList.remove('hidden');
+        document.getElementById('kickBtn').classList.remove('hidden');
+        document.getElementById('requestStreamBtn').classList.remove('hidden'); // hanya admin
+    } else {
+        document.getElementById('startStreamBtn').classList.remove('hidden'); // hanya user biasa
+    }
+
+    loginScreen.classList.add('hidden');
+    chatRoom.classList.remove('hidden');
+
+    // Koneksi Firebase
+    connectToChat();
+
+    // Ambil pesan dari database
+    const messagesRef = database.ref('messages');
+    messagesRef.orderByChild('timestamp').limitToLast(100).on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        addMessage(message.sender, message.text, message.sender === username);
+    });
+
+    // Update user count
+    const usersRef = database.ref('users/' + username);
+    usersRef.set(true);
+    usersRef.onDisconnect().remove();
+
+    const userCountRef = database.ref('users');
+    userCountRef.on('value', (snapshot) => {
+        const count = snapshot.numChildren();
+        userCount.textContent = count;
+    });
+
+    // ✅ HANYA untuk user biasa → listen stream request dari admin
+    if (!isAdmin) {
+        database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                const request = snapshot.val();
+                const approveBtn = document.getElementById('approveBtn');
+
+                console.log('[USER] Received stream request:', request);
+
+                if (confirm(`Admin @${request.requester} wants to view your stream. Approve?`)) {
+                    approveBtn.dataset.requester = request.requester;
+                    approveBtn.classList.remove('hidden');
+                }
+
+                snapshot.ref.remove(); // bersihkan permintaan
+            }
         });
+    }
+});
+
         
         // Connect to Firebase
         function connectToChat() {
