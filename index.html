@@ -86,15 +86,33 @@
             border: 1px solid #ffd700;
             font-family: 'Orbitron', sans-serif;
             letter-spacing: 1px;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             position: relative;
             overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            font-weight: bold;
         }
         
         .cyberpunk-btn:hover {
             background: linear-gradient(45deg, #8a5a00, #ffd700);
-            box-shadow: 0 0 15px #ffd700;
-            transform: translateY(-2px);
+            box-shadow: 0 0 15px #ffd700, 0 0 5px rgba(255, 215, 0, 0.5);
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .cyberpunk-btn:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 0 8px #ffd700;
+        }
+
+        .cyberpunk-btn i {
+            transition: all 0.2s;
+        }
+
+        .cyberpunk-btn:hover i {
+            transform: scale(1.1);
         }
 
         .gear-icon {
@@ -355,21 +373,21 @@
                 <div class="text-xs md:text-sm">
                     <span id="currentUser" class="text-green-400">GUEST</span>
                 </div>
-                <div class="flex order-3 md:order-2 gap-1">
-                    <button id="startStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden">
-                        <span class="gear-icon"></span> <span class="hidden sm:inline">STREAM</span>
+                <div class="flex order-3 md:order-2 gap-2">
+                    <button id="startStreamBtn" class="cyberpunk-btn px-3 py-2 rounded text-sm md:text-base hidden min-w-[80px]">
+                        <span>STREAM</span>
                     </button>
-                    <button id="requestStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden" title="Request stream">
-                        <span class="gear-icon"></span> <span class="hidden sm:inline">REQUEST</span>
+                    <button id="viewStreamBtn" class="cyberpunk-btn px-3 py-2 rounded text-sm md:text-base hidden min-w-[80px]" title="View user stream">
+                        <span>VIEW</span>
                     </button>
-                    <button id="clearChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden">
-                        <span class="gear-icon"></span> <span class="hidden sm:inline">CLEAR</span>
+                    <button id="clearChatBtn" class="cyberpunk-btn px-3 py-2 rounded text-sm md:text-base hidden min-w-[80px]">
+                        <span>CLEAR</span>
                     </button>
-                    <button id="kickBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm hidden bg-red-600">
-                        <span class="gear-icon"></span> <span class="hidden sm:inline">KICK</span>
+                    <button id="kickBtn" class="cyberpunk-btn px-3 py-2 rounded text-sm md:text-base hidden min-w-[80px] bg-red-600 hover:bg-red-700">
+                        <span>KICK</span>
                     </button>
-                    <button id="closeChatBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs md:text-sm">
-                        <span class="gear-icon"></span> <span class="hidden sm:inline">CLOSE</span>
+                    <button id="closeChatBtn" class="cyberpunk-btn px-3 py-2 rounded text-sm md:text-base min-w-[80px]">
+                        <span>CLOSE</span>
                     </button>
                 </div>
             </div>
@@ -384,13 +402,13 @@
                         </div>
                         <div class="flex space-x-2">
                             <button id="approveBtn" class="cyberpunk-btn bg-yellow-600 px-2 py-1 rounded text-xs hidden">
-                                <i class="fas fa-user-lock mr-1"></i> APPROVE
+                                APPROVE
                             </button>
                             <button id="switchCameraBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs hidden">
-                                <i class="fas fa-sync-alt mr-1"></i> SWITCH
+                                SWITCH
                             </button>
                             <button id="stopStreamBtn" class="cyberpunk-btn px-2 py-1 rounded text-xs">
-                                <i class="fas fa-stop mr-1"></i> STOP
+                                STOP
                             </button>
                         </div>
                     </div>
@@ -406,8 +424,7 @@
                 <div class="flex gap-2">
                     <input type="text" id="messageInput" class="cyberpunk-input flex-1 rounded text-sm md:text-base" placeholder="TYPE MESSAGE..." disabled>
                     <button id="sendBtn" class="cyberpunk-btn px-3 md:px-4 rounded flex items-center justify-center" disabled>
-                        <i class="fas fa-paper-plane md:mr-2"></i>
-                        <span class="hidden sm:inline">SEND</span>
+                        <i class="fas fa-paper-plane mr-1"></i><span>SEND</span>
                     </button>
                 </div>
                 <div class="flex justify-between mt-1 text-[9px] md:text-xs text-gray-500">
@@ -538,7 +555,7 @@
         currentUser.innerHTML = `${username} <span class="text-xs">(ADMIN)</span>`;
         document.getElementById('clearChatBtn').classList.remove('hidden');
         document.getElementById('kickBtn').classList.remove('hidden');
-        document.getElementById('requestStreamBtn').classList.remove('hidden'); // hanya admin
+        document.getElementById('viewStreamBtn').classList.remove('hidden'); // tombol view untuk admin
     } else {
         document.getElementById('startStreamBtn').classList.remove('hidden'); // hanya user biasa
     }
@@ -1013,53 +1030,13 @@
             }
         });
 
-        // Listen for stream requests (for regular users)
-        database.ref(`stream-requests/${username}`).on('value', (snapshot) => {
-            if (snapshot.exists() && username.toLowerCase() !== 'ichsan87') {
-                const request = snapshot.val();
-                const approveBtn = document.getElementById('approveBtn');
-                
-                if (!streamContainer.classList.contains('hidden')) {
-                    // If already streaming, show approve button immediately
-                    approveBtn.dataset.requester = request.requester;
-                    approveBtn.classList.remove('hidden');
-                    addSystemMessage(`Admin @${request.requester} requested to view your stream`);
-                } else {
-                    // Store request if not currently streaming
-                    pendingStreamRequest = request;
-                    addSystemMessage(`Stream request from @${request.requester} saved. APPROVE button will appear when you go live.`);
-                }
-                
-                // Remove the request from database
-                snapshot.ref.remove();
-            }
-        });
-
-        // Handle approval button click
-        document.getElementById('approveBtn').addEventListener('click', function() {
-            const requester = this.dataset.requester;
-            if (requester) {
-                // Notify requester that stream is approved
-                database.ref(`stream-approvals/${requester}`).set({
-                    broadcaster: username,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
-                });
-                this.classList.add('hidden');
-                addSystemMessage(`Stream access granted to @${requester}`);
-            }
-        });
-
-        // Listen for stream approvals (for admin)
-        database.ref(`stream-approvals/${username}`).on('value', (snapshot) => {
-            if (snapshot.exists() && username.toLowerCase() === 'ichsan87') {
-                const approval = snapshot.val();
-                connectToBroadcast(approval.broadcaster);
-                snapshot.ref.remove();
-            }
-        });
 
         // Enhanced viewer connection for P2P streaming with retry logic
         function connectToBroadcast(broadcaster) {
+            if (!broadcaster) {
+                addSystemMessage('Invalid broadcaster');
+                return;
+            }
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
@@ -1093,7 +1070,7 @@
                 }).then(() => {
                     // Send answer back to broadcaster
                     broadcastRef.child('answer').set(peerConnection.localDescription.toJSON());
-                    addSystemMessage(`Successfully connected to @${broadcaster}'s broadcast`);
+                    addSystemMessage(`Admin connected to @${broadcaster}'s broadcast`);
                 }).catch(e => {
                     if (retryCount < MAX_RETRIES) {
                         setTimeout(attemptConnection, 2000);
@@ -1213,20 +1190,20 @@
         cursor.className = 'terminal-cursor';
         document.body.appendChild(cursor);
         
-        // Stream request functionality
-        const requestStreamBtn = document.getElementById('requestStreamBtn');
-        let currentStreamRequest = null;
+        // View stream functionality for admin
+        const viewStreamBtn = document.getElementById('viewStreamBtn');
+        let currentViewingStream = null;
 
-        requestStreamBtn.addEventListener('click', () => {
+        viewStreamBtn.addEventListener('click', () => {
             // Create modal
             const modal = document.createElement('div');
             modal.className = 'stream-request-modal';
             modal.innerHTML = `
                 <div class="stream-request-content cyberpunk-font">
-                    <h3 class="text-lg mb-4">REQUEST STREAM FROM USER</h3>
+                    <h3 class="text-lg mb-4">SELECT STREAM TO VIEW</h3>
                     <div class="stream-user-list cyberpunk-scrollbar" id="streamUserList">
                         <div class="text-center py-4 text-gray-500">
-                            <i class="fas fa-spinner fa-spin"></i> Loading users...
+                            <i class="fas fa-spinner fa-spin"></i> Loading active streams...
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -1239,8 +1216,8 @@
             
             document.body.appendChild(modal);
             
-            // Load available users
-            database.ref('users').once('value').then(snapshot => {
+            // Load active broadcasts
+            database.ref('broadcasts').once('value').then(snapshot => {
                 const userList = document.getElementById('streamUserList');
                 userList.innerHTML = '';
                 
@@ -1255,13 +1232,11 @@
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
                         userItem.addEventListener('click', () => {
-                            // Send stream request to user
-                            database.ref(`stream-requests/${user.key}`).set({
-                                requester: username,
-                                timestamp: firebase.database.ServerValue.TIMESTAMP
-                            });
-                            modal.remove();
-                            addSystemMessage(`Stream request sent to @${user.key}. Waiting for approval...`);
+                            if (user.key) {
+                                // Directly connect without approval
+                                connectToBroadcast(user.key);
+                                modal.remove();
+                            }
                         });
                         userList.appendChild(userItem);
                     }
