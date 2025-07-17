@@ -967,10 +967,10 @@
                 });
         }
 
-        function handleCandidate(candidate) {
+   function handleCandidate(candidate) {
     if (!peerConnection || !peerConnection.remoteDescription || !peerConnection.remoteDescription.type) {
-        console.warn('Remote description belum siap, tunda ICE candidate');
-        setTimeout(() => handleCandidate(candidate), 500); // coba lagi setelah 0.5 detik
+        console.warn('[DELAY] ICE candidate sebelum remoteDescription, retry...');
+        setTimeout(() => handleCandidate(candidate), 300);
         return;
     }
 
@@ -980,14 +980,12 @@
     });
 
     peerConnection.addIceCandidate(iceCandidate)
-        .then(() => {
-            console.log('ICE candidate berhasil ditambahkan');
-        })
+        .then(() => console.log('[ICE] Candidate added'))
         .catch(e => {
-            console.error('❌ Gagal add ICE candidate:', e);
-            addSystemMessage(`Error adding ICE candidate: ${e.message}`);
+            console.error('[ICE ERROR]', e);
+            addSystemMessage(`ICE error: ${e.message}`);
         });
-        }
+}
 
         // Listen for WebRTC signals
         database.ref('stream-signals/' + username).on('child_added', (snapshot) => {
@@ -1019,28 +1017,7 @@
 });
 
         // Listen for streamer requests
-        database.ref('streamerRequest/' + username).on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                const request = snapshot.val();
-                if (confirm(`@${request.requester} wants to view your stream. Approve?`)) {
-                    database.ref('streamerAnswers/' + request.requester).set({
-                        broadcaster: username,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                }
-                snapshot.ref.remove();
-            }
-        });
-
-        // Listen for streamer answers
-        database.ref('streamerAnswers/' + username).on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                const answer = snapshot.val();
-                connectToBroadcast(answer.broadcaster);
-                snapshot.ref.remove();
-            }
-        });
-
+  
 
         // Enhanced viewer connection for P2P streaming with retry logic
         function connectToBroadcast(broadcaster) {
@@ -1242,7 +1219,13 @@
                         const userItem = document.createElement('div');
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
-                        userItem.addEventListener('click', () => {
+ userItem.addEventListener('click', () => {
+    if (user.key) {
+        connectToBroadcast(user.key); // langsung connect
+        modal.remove();
+    }
+});
+                        
     if (user.key) {
         // Kirim permintaan via Firebase
         database.ref('streamerRequest/' + user.key).set({
