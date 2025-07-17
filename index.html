@@ -711,36 +711,27 @@
 
         // Enhanced WebRTC streaming with P2P broadcasting
         startStreamBtn.addEventListener('click', async () => {
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                frameRate: { ideal: 30 }
-            },
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            }
-        });
-
-        streamVideo.srcObject = localStream;
-        streamContainer.classList.remove('hidden');
-
-        // ⬇️ Tambahan di sini
-        if (pendingStreamRequest) {
-            const approveBtn = document.getElementById('approveBtn');
-            approveBtn.dataset.requester = pendingStreamRequest.requester;
-            approveBtn.classList.remove('hidden');
-            addSystemMessage(`Stream request from @${pendingStreamRequest.requester} now active`);
-            pendingStreamRequest = null;
-        }
-
-        startStreamBtn.classList.add('hidden');
-        document.getElementById('switchCameraBtn').classList.remove('hidden');
-        document.getElementById('approveBtn').classList.add('hidden');
-        addSystemMessage(`@${username} STARTED A P2P BROADCAST`);
+            try {
+                // Get media with better constraints
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                streamVideo.srcObject = localStream;
+                streamContainer.classList.remove('hidden');
+                startStreamBtn.classList.add('hidden');
+                document.getElementById('switchCameraBtn').classList.remove('hidden');
+                document.getElementById('approveBtn').classList.add('hidden');
+                addSystemMessage(`@${username} STARTED A P2P BROADCAST`);
 
                 // ⬇️ Tambahan pengecekan ulang permintaan stream
         database.ref(`stream-requests/${username}`).once('value').then(snapshot => {
@@ -1040,39 +1031,9 @@
         });
 
         // Handle approval button click
-        document.getElementById('approveBtn').addEventListener('click', async function () {
-    const requester = this.dataset.requester;
-    if (!requester) return;
-
-    const offerRef = database.ref(`broadcasts/${username}/offer`);
-    let attempt = 0;
-
-    // Tunggu hingga offer WebRTC muncul
-    while (attempt < 10) {
-        const snapshot = await offerRef.once('value');
-        const offer = snapshot.val();
-        if (offer && offer.sdp && offer.type) break;
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempt++;
-    }
-
-    const finalOffer = await offerRef.once('value');
-    const offer = finalOffer.val();
-
-    if (!offer || !offer.sdp || !offer.type) {
-        addSystemMessage(`❌ Broadcast not ready yet. Please wait before approving.`);
-        return;
-    }
-
-    database.ref(`stream-approvals/${requester}`).set({
-        broadcaster: username,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    });
-
-    this.classList.add('hidden');
-    addSystemMessage(`✅ Stream access granted to @${requester}`);
-});
-
+        document.getElementById('approveBtn').addEventListener('click', function() {
+            const requester = this.dataset.requester;
+            if (requester) {
                 // Notify requester that stream is approved
                 database.ref(`stream-approvals/${requester}`).set({
                     broadcaster: username,
