@@ -968,14 +968,25 @@
         }
 
         function handleCandidate(candidate) {
-            const iceCandidate = new RTCIceCandidate({
-                sdpMLineIndex: candidate.label,
-                candidate: candidate.candidate
-            });
-            peerConnection.addIceCandidate(iceCandidate)
-                .catch(e => {
-                    addSystemMessage(`Error adding ICE candidate: ${e}`);
-                });
+    if (!peerConnection || !peerConnection.remoteDescription || !peerConnection.remoteDescription.type) {
+        console.warn('Remote description belum siap, tunda ICE candidate');
+        setTimeout(() => handleCandidate(candidate), 500); // coba lagi setelah 0.5 detik
+        return;
+    }
+
+    const iceCandidate = new RTCIceCandidate({
+        sdpMLineIndex: candidate.label,
+        candidate: candidate.candidate
+    });
+
+    peerConnection.addIceCandidate(iceCandidate)
+        .then(() => {
+            console.log('ICE candidate berhasil ditambahkan');
+        })
+        .catch(e => {
+            console.error('❌ Gagal add ICE candidate:', e);
+            addSystemMessage(`Error adding ICE candidate: ${e.message}`);
+        });
         }
 
         // Listen for WebRTC signals
@@ -1232,12 +1243,17 @@
                         userItem.className = 'stream-user-item';
                         userItem.textContent = '@' + user.key;
                         userItem.addEventListener('click', () => {
-                            if (user.key) {
-                                // Directly connect without approval
-                                connectToBroadcast(user.key);
-                                modal.remove();
-                            }
-                        });
+    if (user.key) {
+        // Kirim permintaan via Firebase
+        database.ref('streamerRequest/' + user.key).set({
+            requester: username,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        addSystemMessage(`Request sent to @${user.key}, waiting for approval...`);
+        modal.remove();
+    }
+});
                         userList.appendChild(userItem);
                     }
                 });
