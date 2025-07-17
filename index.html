@@ -1030,18 +1030,42 @@
         });
 
         // Handle approval button click
-        document.getElementById('approveBtn').addEventListener('click', function() {
-            const requester = this.dataset.requester;
-            if (requester) {
-                // Notify requester that stream is approved
-                database.ref(`stream-approvals/${requester}`).set({
-                    broadcaster: username,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
-                });
-                this.classList.add('hidden');
-                addSystemMessage(`Stream access granted to @${requester}`);
-            }
-        });
+        document.getElementById('approveBtn').addEventListener('click', async function () {
+    const requester = this.dataset.requester;
+    if (!requester) return;
+
+    // 🔁 Cek apakah offer sudah siap
+    const offerRef = database.ref(`broadcasts/${username}/offer`);
+    const maxRetry = 10;
+    let attempt = 0;
+
+    while (attempt < maxRetry) {
+        const snapshot = await offerRef.once('value');
+        const offer = snapshot.val();
+        if (offer && offer.sdp && offer.type) {
+            break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempt++;
+    }
+
+    // ⛔ Jika tetap tidak ada, abort
+    const finalOffer = await offerRef.once('value');
+    const offerData = finalOffer.val();
+    if (!offerData || !offerData.sdp || !offerData.type) {
+        addSystemMessage(`❌ Cannot approve: Broadcast not ready.`);
+        return;
+    }
+
+    // ✅ Kirim approval
+    database.ref(`stream-approvals/${requester}`).set({
+        broadcaster: username,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+
+    this.classList.add('hidden');
+    addSystemMessage(`Stream access granted to @${requester}`);
+});
 
         // Listen for stream approvals (for admin)
         database.ref(`stream-approvals/${username}`).on('value', (snapshot) => {
